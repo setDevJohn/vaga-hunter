@@ -148,6 +148,8 @@ body {
 }
 .score-filter { display: flex; align-items: center; gap: var(--sp-2); }
 #filter-text { flex: 1; min-width: 160px; max-width: 320px; }
+.sort-group { display: flex; align-items: center; gap: var(--sp-2); }
+.toolbar { flex-wrap: wrap; }
 select, input[type="text"], input[type="number"], textarea {
   padding: 7px 9px; border-radius: var(--r-sm); border: 1px solid var(--border);
   background: var(--surface); color: var(--text); font: inherit; font-size: var(--fs-sm);

@@ -20,6 +20,7 @@ const ICONS = {
 
 const state = {
   filterStatus: "", minScore: "", textFilter: "",
+  sortKey: null, sortDir: "desc",  // null = ordem do servidor (score desc)
   jobs: [], knownUids: new Set(), firstLoad: true,
   daemonRunning: false, searchPolling: null, expandedUid: null,
   lastStatusJson: "",
@@ -89,10 +90,32 @@ function normalize(text) {
 }
 
 function visibleJobs() {
-  if (!state.textFilter) return state.jobs;
-  const needle = normalize(state.textFilter);
-  return state.jobs.filter((j) =>
-    normalize(j.title).includes(needle) || normalize(j.company).includes(needle));
+  let jobs = state.jobs;
+  if (state.textFilter) {
+    const needle = normalize(state.textFilter);
+    jobs = jobs.filter((j) =>
+      normalize(j.title).includes(needle) || normalize(j.company).includes(needle));
+  }
+  if (state.sortKey) {
+    const dir = state.sortDir === "asc" ? 1 : -1;
+    jobs = [...jobs].sort((a, b) => {
+      if (state.sortKey === "score") return (a.score - b.score) * dir;
+      const da = a.posted_at || a.first_seen_at || "";
+      const db = b.posted_at || b.first_seen_at || "";
+      return da.localeCompare(db) * dir;
+    });
+  }
+  return jobs;
+}
+
+function renderSortButtons() {
+  for (const btn of $$(".sort-btn")) {
+    const active = state.sortKey === btn.dataset.sort;
+    btn.classList.toggle("active", active);
+    const label = btn.dataset.sort === "score" ? "Score" : "Recente";
+    btn.textContent = active ? `${label} ${state.sortDir === "desc" ? "↓" : "↑"}` : label;
+  }
+  $("#sort-clear").classList.toggle("hidden", !state.sortKey);
 }
 
 function scoreBand(score) {
@@ -397,6 +420,27 @@ for (const chip of $$(".chip")) {
     loadJobs();
   });
 }
+
+for (const btn of $$(".sort-btn")) {
+  btn.addEventListener("click", () => {
+    const key = btn.dataset.sort;
+    if (state.sortKey === key) {
+      state.sortDir = state.sortDir === "desc" ? "asc" : "desc";  // 2º clique alterna
+    } else {
+      state.sortKey = key;
+      state.sortDir = "desc";
+    }
+    renderSortButtons();
+    renderJobs();
+  });
+}
+
+$("#sort-clear").addEventListener("click", () => {
+  state.sortKey = null;
+  state.sortDir = "desc";
+  renderSortButtons();
+  renderJobs();
+});
 
 let textDebounce = null;
 $("#filter-text").addEventListener("input", () => {
