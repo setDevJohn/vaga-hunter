@@ -44,7 +44,9 @@ Regras especiais: mobile só pontua com React Native; devops/cloud só junior.
 
 ## Fonte de posts do LinkedIn (opcional)
 
-⚠️ A busca em **posts** exige sessão logada. O modo `browser` conecta ao **seu Chrome real já aberto e logado** via CDP, com ritmo humano e pouquíssimas requisições por execução. O risco de bloqueio é baixo, **mas não zero** — por isso vem **desligado por padrão** (`linkedin_posts = false`). A busca pública de vagas não usa a sua conta.
+⚠️ A busca em **posts** exige sessão logada. O modo `browser` controla um Chrome local via CDP, com ritmo humano e pouquíssimas requisições por execução. O risco de bloqueio é baixo, **mas não zero** — por isso vem **desligado por padrão** (`linkedin_posts = false`). A busca pública de vagas não usa a sua conta.
+
+Como o Chrome 136+ bloqueia a porta de depuração no perfil padrão, o bot usa um **perfil próprio** (`~/.config/vaga-hunter-chrome`). Clique no pill "Posts" da interface: ele abre esse Chrome sozinho — no primeiro uso, faça login no LinkedIn nessa janela (fica salvo) e clique no pill de novo.
 
 ## Anti-bloqueio
 

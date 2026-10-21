@@ -229,10 +229,8 @@ function renderStatus(data) {
     postsPill.classList.remove("hidden");
     state.postsState = posts.state;
     postsPill.classList.toggle("on", posts.state === "ready");
-    postsPill.classList.toggle("warn", posts.state === "chrome_no_port");
     $("#posts-label").textContent = {
       ready: "Posts prontos",
-      chrome_no_port: "Posts: Chrome sem porta",
       chrome_closed: "Posts: abrir Chrome",
     }[posts.state] || "Posts";
   } else {
@@ -317,19 +315,18 @@ $("#btn-search").addEventListener("click", async () => {
 });
 
 $("#posts-pill").addEventListener("click", async () => {
-  // Automatiza o fluxo de posts: garante o Chrome com CDP e dispara a busca
-  if (state.postsState === "chrome_no_port") {
-    toast("Feche TODAS as janelas do Chrome e clique de novo — " +
-          "preciso reabrir com a porta de depuração", "danger");
-    return;
-  }
+  // Automatiza o fluxo de posts: garante o Chrome do bot (perfil próprio,
+  // porta CDP) e dispara a busca
   $("#posts-label").textContent = "Preparando Chrome…";
   let prep;
   try {
     prep = await api("/api/posts/prepare", { method: "POST" });
   } catch { refreshStatus(true); return; }
-  if (prep.launched) toast("Chrome aberto — confira se está logado no LinkedIn", "ok");
   refreshStatus(true);
+  if (prep.first_use) {
+    toast("Primeiro uso: faça login no LinkedIn na janela que abriu e clique no pill de novo", "ok");
+    return;
+  }
   if (prep.state === "ready") $("#btn-search").click();
 });
 

@@ -4,9 +4,11 @@
 ritmo humano, pouquíssimas requisições) mas NÃO é zero. Desligada por padrão.
 
 Como usar:
-1. Feche o Chrome e reabra com a porta de depuração:
-     google-chrome --remote-debugging-port=9222
-   (ou crie um atalho; a sessão/login continuam os mesmos)
+1. Pela UI: clique no pill "Posts" — ele abre o Chrome do bot sozinho.
+   Pelo terminal (Chrome 136+ exige perfil próprio para a porta CDP):
+     google-chrome --remote-debugging-port=9222 \
+         --user-data-dir=~/.config/vaga-hunter-chrome
+   No primeiro uso, faça login no LinkedIn nesse perfil (fica salvo).
 2. No config.toml:
      [sources]
      linkedin_posts = true
