@@ -131,7 +131,8 @@ function jobCard(job) {
   const status = job.status;
   const isNew = status === "new";
   const badges = [];
-  const SOURCE_PT = { linkedin_jobs: "LinkedIn", linkedin_posts: "LinkedIn · post", infojobs: "InfoJobs" };
+  const SOURCE_PT = { linkedin_jobs: "LinkedIn", linkedin_posts: "LinkedIn · post",
+                      infojobs: "InfoJobs", catho: "Catho" };
   badges.push(`<span class="badge outline source">${esc(SOURCE_PT[job.source] || job.source)}</span>`);
   const MODALITY_PT = { remote: "🏠 remoto", hybrid: "🔄 híbrido", onsite: "🏢 presencial" };
   if (job.modality) badges.push(`<span class="badge outline modality-${esc(job.modality)}">${MODALITY_PT[job.modality]}</span>`);
@@ -149,7 +150,8 @@ function jobCard(job) {
     <div class="job-row1">
       <span class="score-chip score-${scoreBand(job.score)}"
             aria-label="score ${Math.round(job.score)} de 100">${Math.round(job.score)}</span>
-      <a class="job-title" href="${esc(safeUrl(job.url))}" target="_blank" rel="noopener">${esc(job.title)}</a>
+      <a class="job-title" href="${esc(safeUrl(job.url))}" target="_blank"
+         rel="noopener noreferrer" referrerpolicy="no-referrer">${esc(job.title)}</a>
       <div class="job-actions">${actions}</div>
     </div>
     <div class="job-row2">
@@ -174,7 +176,8 @@ function detailsPanel(job) {
   const desc = (job.description || "").trim();
   return `<div class="job-details">
     <div class="job-desc">${desc ? esc(desc.slice(0, 600)) + (desc.length >= 600 ? "…" : "") : '<span class="muted">sem descrição salva</span>'}
-      <p><a href="${esc(safeUrl(job.url))}" target="_blank" rel="noopener">abrir vaga ↗</a></p></div>
+      <p><a href="${esc(safeUrl(job.url))}" target="_blank" rel="noopener noreferrer"
+            referrerpolicy="no-referrer">abrir vaga ↗</a></p></div>
     <div class="breakdown"><h4>Score</h4>${rows}</div>
   </div>`;
 }
@@ -360,6 +363,7 @@ const SOURCE_PAGES = {
   linkedin_jobs: "LinkedIn Jobs",
   linkedin_posts: "LinkedIn Posts",
   infojobs: "InfoJobs",
+  catho: "Catho",
 };
 
 function fillTimeSelect(select, value, inheritLabel = null) {
