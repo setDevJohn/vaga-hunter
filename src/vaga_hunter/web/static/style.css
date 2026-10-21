@@ -94,6 +94,7 @@ body {
   animation: spin .7s linear infinite;
 }
 .btn.loading .spinner { display: inline-block; }
+.btn:not(.primary) .spinner { border-color: rgb(127 127 127 / .35); border-top-color: var(--accent); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* daemon pill */

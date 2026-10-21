@@ -266,18 +266,19 @@ function renderStatus(data) {
 
   const { search, daemon, counts, posts } = data;
 
-  // pill da fonte de posts (só aparece se ligada no config)
-  const postsPill = $("#posts-pill");
+  // botão de busca em posts (só aparece com a fonte ligada no config)
+  const postsBtn = $("#btn-posts");
+  const postsSearching = search.running && search.what === "posts";
   if (posts?.enabled) {
-    postsPill.classList.remove("hidden");
+    postsBtn.classList.remove("hidden");
     state.postsState = posts.state;
-    postsPill.classList.toggle("on", posts.state === "ready");
-    $("#posts-label").textContent = {
-      ready: "Posts prontos",
-      chrome_closed: "Posts: abrir Chrome",
-    }[posts.state] || "Posts";
+    postsBtn.disabled = search.running;
+    postsBtn.classList.toggle("loading", postsSearching);
+    postsBtn.querySelector(".btn-label").textContent = postsSearching
+      ? "Buscando posts…"
+      : (posts.state === "ready" ? "Buscar posts" : "Buscar posts (abre Chrome)");
   } else {
-    postsPill.classList.add("hidden");
+    postsBtn.classList.add("hidden");
   }
   state.daemonRunning = daemon.running;
 
@@ -301,9 +302,10 @@ function renderStatus(data) {
 
   // busca manual
   const btn = $("#btn-search");
+  const jobsSearching = search.running && search.what === "jobs";
   btn.disabled = search.running;
-  btn.classList.toggle("loading", search.running);
-  btn.querySelector(".btn-label").textContent = search.running ? "Buscando…" : "Buscar agora";
+  btn.classList.toggle("loading", jobsSearching);
+  btn.querySelector(".btn-label").textContent = jobsSearching ? "Buscando…" : "Buscar vagas";
   $("#btn-cancel").classList.toggle("hidden", !search.running);
 
   const logCard = $("#log-card");
@@ -353,13 +355,15 @@ async function loadConfig() {
 
 /* ---------- wiring ---------- */
 
-$("#btn-search").addEventListener("click", async () => {
+async function startSearch(what) {
   try {
-    await api("/api/search", { method: "POST" });
+    await api("/api/search", { method: "POST", body: JSON.stringify({ what }) });
   } catch { return; }
   if (!state.searchPolling) state.searchPolling = setInterval(() => refreshStatus(), 1000);
   refreshStatus(true);
-});
+}
+
+$("#btn-search").addEventListener("click", () => startSearch("jobs"));
 
 $("#btn-cancel").addEventListener("click", async () => {
   $("#btn-cancel").disabled = true;
@@ -368,20 +372,23 @@ $("#btn-cancel").addEventListener("click", async () => {
   refreshStatus(true);
 });
 
-$("#posts-pill").addEventListener("click", async () => {
-  // Automatiza o fluxo de posts: garante o Chrome do bot (perfil próprio,
-  // porta CDP) e dispara a busca
-  $("#posts-label").textContent = "Preparando Chrome…";
+$("#btn-posts").addEventListener("click", async () => {
+  // Garante o Chrome do bot (perfil próprio, porta CDP) e busca SÓ posts
+  const btn = $("#btn-posts");
+  if (state.postsState !== "ready") {
+    btn.querySelector(".btn-label").textContent = "Abrindo Chrome…";
+    btn.disabled = true;
+  }
   let prep;
   try {
     prep = await api("/api/posts/prepare", { method: "POST" });
   } catch { refreshStatus(true); return; }
   refreshStatus(true);
   if (prep.first_use) {
-    toast("Primeiro uso: faça login no LinkedIn na janela que abriu e clique no pill de novo", "ok");
+    toast("Primeiro uso: faça login no LinkedIn na janela que abriu e clique de novo", "ok");
     return;
   }
-  if (prep.state === "ready") $("#btn-search").click();
+  if (prep.state === "ready") startSearch("posts");
 });
 
 $("#daemon-pill").addEventListener("click", async () => {

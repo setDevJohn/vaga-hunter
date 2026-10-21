@@ -31,6 +31,7 @@ class SearchState:
     def __init__(self):
         self.lock = threading.Lock()
         self.running = False
+        self.what = "jobs"            # jobs | posts (tipo da busca em andamento)
         self.cancel = threading.Event()
         self.messages: list[str] = []
         self.report: dict | None = None
@@ -49,10 +50,17 @@ def create_app(config: Config, storage: Storage | None = None,
     daemon = daemon or DaemonController(config, storage)
     state = SearchState()
 
-    def _manual_search() -> None:
+    def _manual_search(what: str) -> None:
         from ..notify import build_notifiers
         try:
-            sources = build_sources(config, storage)
+            # "jobs" = só fontes públicas; "posts" = só fontes autenticadas.
+            # Botões separados na UI: busca normal nunca toca na conta.
+            wants_auth = what == "posts"
+            sources = [s for s in build_sources(config, storage)
+                       if s.requires_auth == wants_auth]
+            if not sources:
+                state.log("Nenhuma fonte disponível para essa busca.")
+                return
             scorer = Scorer(config.profile, config.scoring)
             notifiers = build_notifiers(config)
             report = run_search(config, storage, sources, scorer, notifiers,
@@ -82,14 +90,20 @@ def create_app(config: Config, storage: Storage | None = None,
 
     @app.post("/api/search")
     def api_search():
+        what = (request.get_json(silent=True) or {}).get("what", "jobs")
+        if what not in ("jobs", "posts"):
+            return jsonify({"ok": False, "error": "what inválido"}), 400
+        if what == "posts" and not config.sources.linkedin_posts:
+            return jsonify({"ok": False, "error": "fonte de posts desligada no config"}), 400
         with state.lock:
             if state.running:
                 return jsonify({"ok": False, "error": "busca já em andamento"}), 409
             state.running = True
+            state.what = what
             state.cancel.clear()
             state.messages = []
             state.report = None
-        threading.Thread(target=_manual_search, daemon=True).start()
+        threading.Thread(target=_manual_search, args=(what,), daemon=True).start()
         return jsonify({"ok": True})
 
     @app.post("/api/search/cancel")
@@ -116,8 +130,8 @@ def create_app(config: Config, storage: Storage | None = None,
     @app.get("/api/status")
     def api_status():
         return jsonify({
-            "search": {"running": state.running, "messages": state.messages[-50:],
-                       "report": state.report},
+            "search": {"running": state.running, "what": state.what,
+                       "messages": state.messages[-50:], "report": state.report},
             "daemon": daemon.status(),
             "counts": storage.count_by_status(),
             "posts": _posts_status(),

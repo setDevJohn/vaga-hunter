@@ -175,3 +175,38 @@ def test_config_includes_posts_queries(client):
     assert resp.status_code == 200
     cfg2 = test_client.get("/api/config").get_json()
     assert cfg2["posts_queries"] == ["vaga react"]
+
+
+def test_search_jobs_never_includes_posts(client, monkeypatch):
+    """Busca normal filtra fontes autenticadas; busca de posts, as públicas."""
+    import vaga_hunter.web.app as webapp
+    from vaga_hunter.sources.base import JobSource
+
+    class Public(JobSource):
+        name = "linkedin_jobs"; requires_auth = False
+        def search(self, f): return iter([])
+
+    class Auth(JobSource):
+        name = "linkedin_posts"; requires_auth = True
+        def search(self, f): return iter([])
+
+    used = []
+    monkeypatch.setattr(webapp, "build_sources", lambda c, s: [Public(), Auth()])
+    monkeypatch.setattr(webapp, "run_search",
+                        lambda c, s, sources, *a, **k: used.extend(
+                            src.name for src in sources) or __import__(
+                            "vaga_hunter.models", fromlist=["RunReport"]).RunReport())
+    test_client, _ = client
+    import time
+    resp = test_client.post("/api/search", json={"what": "jobs"})
+    assert resp.status_code == 200
+    time.sleep(0.3)
+    assert used == ["linkedin_jobs"]
+
+
+def test_search_posts_rejected_when_disabled(client):
+    test_client, _ = client
+    resp = test_client.post("/api/search", json={"what": "posts"})
+    assert resp.status_code == 400
+    resp2 = test_client.post("/api/search", json={"what": "xyz"})
+    assert resp2.status_code == 400
