@@ -362,6 +362,13 @@ async function loadConfig() {
     timeSel.add(new Option(cfg.time_range, cfg.time_range));  // valor custom do config.toml
   }
   timeSel.value = cfg.time_range;
+  const ijSel = $("#cfg-ij-range");
+  const ijRange = (cfg.time_ranges || {}).infojobs || "";
+  if (ijRange && ![...ijSel.options].some((o) => o.value === ijRange)) {
+    ijSel.add(new Option(ijRange, ijRange));
+  }
+  ijSel.value = ijRange;
+  $("#cfg-ij-range-wrap").classList.toggle("hidden", !cfg.infojobs_enabled);
   $("#cfg-remote").value = cfg.remote;
   $("#cfg-max-pages").value = cfg.max_pages_per_query;
   $("#cfg-threshold").value = cfg.threshold;
@@ -503,6 +510,7 @@ $("#btn-save-config").addEventListener("click", async () => {
       posts_queries: $("#cfg-posts-queries").value.split("\n"),
       location: $("#cfg-location").value,
       time_range: $("#cfg-time-range").value,
+      time_ranges: $("#cfg-ij-range").value ? { infojobs: $("#cfg-ij-range").value } : {},
       remote: $("#cfg-remote").value,
       max_pages_per_query: $("#cfg-max-pages").value,
       threshold: $("#cfg-threshold").value,

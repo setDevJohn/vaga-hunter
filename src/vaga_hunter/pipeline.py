@@ -49,13 +49,17 @@ def build_sources(config: Config, storage: Storage) -> list[JobSource]:
 
 def build_filters(config: Config, source: JobSource | None = None) -> list[SearchFilters]:
     queries = config.search.queries
-    if source is not None and source.name == "linkedin_posts" and config.sources.posts.queries:
-        queries = config.sources.posts.queries  # queries próprias da busca em posts
+    time_range = config.search.time_range
+    if source is not None:
+        if source.name == "linkedin_posts" and config.sources.posts.queries:
+            queries = config.sources.posts.queries  # queries próprias da busca em posts
+        # período por fonte (ex.: LinkedIn r2h, InfoJobs r24h)
+        time_range = config.sources.time_ranges.get(source.name, time_range)
     return [
         SearchFilters(
             keywords=query,
             location=config.search.location,
-            time_range=config.search.time_range,
+            time_range=time_range,
             remote=config.search.remote or None,
             max_pages=config.search.max_pages_per_query,
         )

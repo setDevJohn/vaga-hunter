@@ -237,6 +237,8 @@ def create_app(config: Config, storage: Storage | None = None,
             "threshold": config.scoring.threshold,
             "posts_enabled": config.sources.linkedin_posts,
             "posts_queries": config.sources.posts.queries,
+            "infojobs_enabled": config.sources.infojobs,
+            "time_ranges": config.sources.time_ranges,
         })
 
     @app.post("/api/config")
@@ -248,10 +250,18 @@ def create_app(config: Config, storage: Storage | None = None,
         if not queries:
             errors.append("informe pelo menos uma busca")
         import re as _re
+
+        def _valid_range(value: str) -> bool:
+            return value in {"r24h", "r3d", "r7d", "r1m"} or \
+                bool(_re.match(r"^r\d+(m|h|d)$", value))
+
         time_range = data.get("time_range", config.search.time_range)
-        if time_range not in {"r24h", "r3d", "r7d", "r1m"} and \
-                not _re.match(r"^r\d+(m|h|d)$", time_range):
+        if not _valid_range(time_range):
             errors.append("time_range inválido (use r30m, r1h, r2h, r24h, r3d...)")
+        time_ranges = data.get("time_ranges", config.sources.time_ranges) or {}
+        time_ranges = {k: v for k, v in time_ranges.items() if v}
+        if any(not _valid_range(v) for v in time_ranges.values()):
+            errors.append("período por fonte inválido")
         remote = data.get("remote", "")
         if remote not in {"", "remote", "hybrid", "onsite"}:
             errors.append("remote inválido")
@@ -268,6 +278,7 @@ def create_app(config: Config, storage: Storage | None = None,
         config.search.queries = queries
         config.search.location = str(data.get("location", config.search.location)).strip() or "Brasil"
         config.search.time_range = time_range
+        config.sources.time_ranges = time_ranges
         config.search.remote = remote or None
         config.search.max_pages_per_query = max_pages
         config.scoring.threshold = threshold

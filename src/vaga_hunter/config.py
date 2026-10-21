@@ -48,6 +48,9 @@ class SourcesConfig:
     linkedin_posts: bool = False
     infojobs: bool = False
     posts: PostsConfig = field(default_factory=PostsConfig)
+    # Período por fonte; fonte ausente usa o [search].time_range padrão.
+    # Ex.: [sources.time_range]  infojobs = "r24h"
+    time_ranges: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -112,6 +115,9 @@ def load_config(path: str | Path | None = None) -> Config:
         cfg.sources.linkedin_jobs = bool(sources.get("linkedin_jobs", True))
         cfg.sources.linkedin_posts = bool(sources.get("linkedin_posts", False))
         cfg.sources.infojobs = bool(sources.get("infojobs", False))
+        overrides = sources.get("time_range", {})
+        if isinstance(overrides, dict):
+            cfg.sources.time_ranges = {str(k): str(v) for k, v in overrides.items() if v}
         _apply(cfg.sources.posts, sources.get("posts", {}))
         _apply(cfg.http, raw.get("http", {}))
         _apply(cfg.daemon, raw.get("daemon", {}))
@@ -142,6 +148,12 @@ def save_search_params(cfg: Config) -> bool:
     sources = doc.setdefault("sources", tomlkit.table())
     posts = sources.setdefault("posts", tomlkit.table())
     posts["queries"] = cfg.sources.posts.queries
+    if cfg.sources.time_ranges:
+        ranges = sources.setdefault("time_range", tomlkit.table())
+        for key, value in cfg.sources.time_ranges.items():
+            ranges[key] = value
+    elif "time_range" in sources:
+        del sources["time_range"]
     cfg.config_path.write_text(tomlkit.dumps(doc))
     return True
 
