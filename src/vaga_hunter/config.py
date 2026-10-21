@@ -38,6 +38,8 @@ class PostsConfig:
     mode: str = "disabled"            # disabled | browser
     cdp_url: str = "http://127.0.0.1:9222"
     max_requests_per_run: int = 8
+    # Queries próprias da busca em posts; vazio = usa as queries de [search]
+    queries: list[str] = field(default_factory=list)
 
 
 @dataclass

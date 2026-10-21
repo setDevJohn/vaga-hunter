@@ -99,3 +99,25 @@ def test_blocked_source_sets_cooldown_and_skips_next_run(env):
     run_search(config, storage, [source], scorer, [],
                progress=messages.append)
     assert any("cooldown" in m for m in messages)
+
+
+def test_posts_source_uses_own_queries(env):
+    config, storage, scorer = env
+    config.search.queries = ["query de vagas"]
+    config.sources.posts.queries = ["query de posts"]
+
+    class NamedSource(FakeSource):
+        def __init__(self, name):
+            super().__init__([])
+            self.name = name
+            self.seen_queries = []
+
+        def search(self, filters):
+            self.seen_queries.append(filters.keywords)
+            return iter([])
+
+    jobs_src = NamedSource("linkedin_jobs")
+    posts_src = NamedSource("linkedin_posts")
+    run_search(config, storage, [jobs_src, posts_src], scorer, [])
+    assert jobs_src.seen_queries == ["query de vagas"]
+    assert posts_src.seen_queries == ["query de posts"]

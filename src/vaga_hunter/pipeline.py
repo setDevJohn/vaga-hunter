@@ -38,7 +38,10 @@ def build_sources(config: Config, storage: Storage) -> list[JobSource]:
     return sources
 
 
-def build_filters(config: Config) -> list[SearchFilters]:
+def build_filters(config: Config, source: JobSource | None = None) -> list[SearchFilters]:
+    queries = config.search.queries
+    if source is not None and source.name == "linkedin_posts" and config.sources.posts.queries:
+        queries = config.sources.posts.queries  # queries próprias da busca em posts
     return [
         SearchFilters(
             keywords=query,
@@ -47,7 +50,7 @@ def build_filters(config: Config) -> list[SearchFilters]:
             remote=config.search.remote or None,
             max_pages=config.search.max_pages_per_query,
         )
-        for query in config.search.queries
+        for query in queries
     ]
 
 
@@ -68,7 +71,7 @@ def _run_search(config: Config, storage: Storage, sources: list[JobSource],
         if storage.in_cooldown(source.name):
             progress(f"[{source.name}] em cooldown — pulando")
             continue
-        for filters in build_filters(config):
+        for filters in build_filters(config, source):
             progress(f"[{source.name}] buscando: {filters.keywords}")
             found = new = 0
             error: str | None = None

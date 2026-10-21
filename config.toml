@@ -35,6 +35,8 @@ linkedin_posts = true     # requer sessão logada — risco baixo mas NÃO zero.
 mode = "browser"          # disabled | browser (Chrome real via CDP)
 cdp_url = "http://127.0.0.1:9222"
 max_requests_per_run = 8
+# Queries próprias da busca em posts; comente para usar as de [search]
+queries = ["vaga desenvolvedor", "vaga fullstack", "estamos contratando desenvolvedor"]
 
 [http]
 min_delay = 2.0

@@ -224,6 +224,7 @@ select, input[type="text"], input[type="number"], textarea {
 .badge.applied { background: var(--accent-soft); color: var(--accent); }
 .badge.discarded { background: var(--danger-soft); color: var(--danger); }
 .badge.outline { background: none; border: 1px solid var(--border-strong); }
+.badge.source { color: var(--text-3); }
 .badge.modality-remote { color: var(--ok); border-color: var(--ok); }
 .badge.modality-hybrid { color: var(--warn); border-color: var(--warn); }
 
