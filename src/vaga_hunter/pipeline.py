@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from collections.abc import Callable
 
 from .config import Config
@@ -15,6 +16,10 @@ from .storage import Storage
 log = logging.getLogger(__name__)
 
 ProgressFn = Callable[[str], None]
+
+# Serializa execuções concorrentes (busca manual x daemon no mesmo processo):
+# evita dupla inserção/notificação da mesma vaga.
+_RUN_LOCK = threading.Lock()
 
 
 def build_sources(config: Config, storage: Storage) -> list[JobSource]:
@@ -49,8 +54,15 @@ def build_filters(config: Config) -> list[SearchFilters]:
 def run_search(config: Config, storage: Storage, sources: list[JobSource],
                scorer: Scorer, notifiers: list, *, dry_run: bool = False,
                progress: ProgressFn = lambda msg: None) -> RunReport:
+    with _RUN_LOCK:
+        return _run_search(config, storage, sources, scorer, notifiers,
+                           dry_run=dry_run, progress=progress)
+
+
+def _run_search(config: Config, storage: Storage, sources: list[JobSource],
+                scorer: Scorer, notifiers: list, *, dry_run: bool,
+                progress: ProgressFn) -> RunReport:
     report = RunReport()
-    to_notify: list[tuple[Job, float]] = []
 
     for source in sources:
         if storage.in_cooldown(source.name):
@@ -60,6 +72,7 @@ def run_search(config: Config, storage: Storage, sources: list[JobSource],
             progress(f"[{source.name}] buscando: {filters.keywords}")
             found = new = 0
             error: str | None = None
+            blocked = False
             try:
                 for job in source.search(filters):
                     found += 1
@@ -70,10 +83,9 @@ def run_search(config: Config, storage: Storage, sources: list[JobSource],
                         continue
                     if storage.upsert_job(job, score, details):
                         new += 1
-                        if score >= config.scoring.threshold:
-                            to_notify.append((job, score))
             except SourceBlockedError as exc:
                 error = str(exc)
+                blocked = True
                 storage.set_cooldown(source.name, config.http.cooldown_hours)
                 progress(f"[{source.name}] BLOQUEIO detectado: {exc}. "
                          f"Cooldown de {config.http.cooldown_hours}h ativado.")
@@ -86,21 +98,36 @@ def run_search(config: Config, storage: Storage, sources: list[JobSource],
             report.found += found
             report.new += new
             if not dry_run:
-                storage.record_run(source.name, filters.keywords, found, new, error)
+                try:
+                    storage.record_run(source.name, filters.keywords, found, new, error)
+                except Exception:
+                    log.exception("falha ao registrar run — seguindo")
             progress(f"[{source.name}] {filters.keywords}: {found} vagas, {new} novas")
-            if error and "consecutivas" in error:
+            if blocked:
                 break  # circuit breaker: não insiste nas próximas queries
 
-    if to_notify and notifiers and not dry_run:
-        to_notify.sort(key=lambda item: item[1], reverse=True)
-        jobs = [job for job, _ in to_notify]
+    if notifiers and not dry_run:
+        # Notifica tudo que está 'new' acima do threshold — inclui vagas de
+        # execuções anteriores cuja notificação falhou (retry automático).
+        rows = storage.list_jobs(status="new", min_score=config.scoring.threshold)
+        jobs = [
+            Job(source=row["source"], external_id=row["external_id"],
+                title=row["title"], company=row["company"],
+                location=row["location"], url=row["url"])
+            for row in rows
+        ]
+        if not jobs:
+            return report
+        delivered = False
         for notifier in notifiers:
             try:
                 notifier.notify(jobs)
+                delivered = True
             except Exception as exc:
                 log.exception("falha no notificador %s", type(notifier).__name__)
                 report.errors.append(f"notify: {exc}")
-        storage.mark_notified([job.uid for job in jobs])
-        report.notified = len(jobs)
+        if delivered:
+            storage.mark_notified([job.uid for job in jobs])
+            report.notified = len(jobs)
 
     return report

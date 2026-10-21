@@ -12,7 +12,7 @@ from datetime import datetime
 
 from bs4 import BeautifulSoup
 
-from ..http_client import PoliteSession
+from ..http_client import PoliteSession, SourceBlockedError
 from ..models import Job, SearchFilters
 from .base import JobSource
 
@@ -144,6 +144,8 @@ class LinkedInJobsSource(JobSource):
         try:
             resp = self.session.get(DETAIL_URL.format(job_id=job_id))
             return parse_job_detail(resp.text)
+        except SourceBlockedError:
+            raise  # circuit breaker precisa chegar ao pipeline (cooldown)
         except Exception as exc:  # detalhe é opcional; não derruba a busca
             log.debug("falha no detalhe %s: %s", job_id, exc)
             return ""

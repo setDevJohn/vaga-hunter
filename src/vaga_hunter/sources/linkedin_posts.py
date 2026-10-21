@@ -22,7 +22,6 @@ import re
 import time
 import urllib.parse
 from collections.abc import Iterator
-from datetime import datetime, timezone
 
 from ..config import PostsConfig
 from ..models import Job, SearchFilters
@@ -82,7 +81,7 @@ def extract_jobs_from_posts(posts: list[dict], query: str) -> list[Job]:
             location="",
             url=f"https://www.linkedin.com/feed/update/urn:li:activity:{activity_id}/",
             description=text,
-            posted_at=datetime.now(timezone.utc),  # feed não expõe data exata
+            posted_at=None,  # feed não expõe data confiável; recência fica neutra
         ))
     return jobs
 

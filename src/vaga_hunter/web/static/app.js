@@ -6,16 +6,28 @@ let polling = null;
 
 async function api(path, options = {}) {
   const resp = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      // Força preflight CORS: bloqueia POST cross-origin de outras páginas
+      "X-Requested-With": "vaga-hunter",
+    },
     ...options,
   });
   return resp.json();
 }
 
 function esc(text) {
-  const div = document.createElement("div");
-  div.textContent = text ?? "";
-  return div.innerHTML;
+  return String(text ?? "")
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+}
+
+function safeUrl(url) {
+  try {
+    const parsed = new URL(url, window.location.href);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") return url;
+  } catch {}
+  return "#";
 }
 
 async function loadJobs() {
@@ -29,7 +41,7 @@ async function loadJobs() {
   tbody.innerHTML = jobs.map((job) => `
     <tr data-uid="${esc(job.uid)}">
       <td class="score">${job.score.toFixed(1)}</td>
-      <td><a href="${esc(job.url)}" target="_blank" rel="noopener">${esc(job.title)}</a></td>
+      <td><a href="${esc(safeUrl(job.url))}" target="_blank" rel="noopener">${esc(job.title)}</a></td>
       <td>${esc(job.company)}</td>
       <td>${esc(job.location)}</td>
       <td>${job.posted_at ? job.posted_at.slice(0, 10) : "—"}</td>

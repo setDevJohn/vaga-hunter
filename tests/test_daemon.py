@@ -58,3 +58,35 @@ def test_controller_start_stop_and_runs(tmp_path):
     assert status["running"] is False
     assert status["last_run"] is not None
     storage.close()
+
+
+def test_window_wrapping_midnight():
+    cfg = DaemonConfig(window_start="22:00", window_end="06:00", weekdays_only=False)
+    assert in_window(cfg, datetime(2026, 10, 21, 23, 0))
+    assert in_window(cfg, datetime(2026, 10, 21, 5, 0))
+    assert not in_window(cfg, datetime(2026, 10, 21, 12, 0))
+
+
+def test_stop_does_not_cancel_new_generation(tmp_path):
+    """stop() de uma geração não pode afetar um start() posterior."""
+    import threading
+    config = Config()
+    storage = Storage(tmp_path / "g.db")
+    release = threading.Event()
+    controller = DaemonController(
+        config, storage,
+        clock=lambda: datetime(2026, 10, 21, 10, 0),
+        run_fn=lambda: release.wait(timeout=8),  # busca "lenta"
+    )
+    controller.start()
+    time.sleep(0.1)
+    first_stop_event = controller._stop
+    controller.stop()  # join expira (run_fn preso), thread antiga segue viva
+    release.set()      # libera a thread antiga terminar
+    time.sleep(0.3)
+    assert controller.start() is True
+    # o novo start tem Event próprio; o stop antigo não o afeta
+    assert controller._stop is not first_stop_event
+    assert not controller._stop.is_set()
+    controller.stop()
+    storage.close()

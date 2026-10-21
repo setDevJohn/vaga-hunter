@@ -60,6 +60,14 @@ def create_app(config: Config, storage: Storage | None = None,
         finally:
             state.running = False
 
+    @app.before_request
+    def _csrf_guard():
+        # POSTs exigem header customizado: força preflight CORS e impede que
+        # qualquer página aberta no navegador dispare buscas via 127.0.0.1.
+        if request.method == "POST" and \
+                request.headers.get("X-Requested-With") != "vaga-hunter":
+            return jsonify({"ok": False, "error": "header X-Requested-With ausente"}), 403
+
     @app.get("/")
     def index():
         return render_template("index.html")

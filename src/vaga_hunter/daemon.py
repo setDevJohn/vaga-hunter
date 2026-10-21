@@ -23,10 +23,17 @@ def _parse_hhmm(value: str) -> dtime:
 
 
 def in_window(cfg: DaemonConfig, now: datetime) -> bool:
-    """True se `now` está dentro da janela permitida de buscas."""
+    """True se `now` está dentro da janela permitida de buscas.
+
+    Suporta janelas que cruzam a meia-noite (ex.: 22:00-06:00).
+    """
     if cfg.weekdays_only and now.weekday() >= 5:
         return False
-    return _parse_hhmm(cfg.window_start) <= now.time() <= _parse_hhmm(cfg.window_end)
+    start = _parse_hhmm(cfg.window_start)
+    end = _parse_hhmm(cfg.window_end)
+    if start <= end:
+        return start <= now.time() <= end
+    return now.time() >= start or now.time() <= end
 
 
 def next_interval_seconds(cfg: DaemonConfig, rand: random.Random | None = None) -> float:
@@ -46,7 +53,7 @@ class DaemonController:
         self.storage = storage
         self.clock = clock or datetime.now
         self._run_fn = run_fn or self._default_run
-        self._stop = threading.Event()
+        self._stop: threading.Event | None = None
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
         self.last_run: datetime | None = None
@@ -87,9 +94,12 @@ class DaemonController:
         with self._lock:
             if self.running:
                 return False
-            self._stop.clear()
-            self._thread = threading.Thread(target=self._loop, daemon=True,
-                                            name="vaga-hunter-daemon")
+            # Event próprio por geração: um start novo nunca "rouba" o stop
+            # de uma thread antiga que ainda não terminou o join.
+            stop = threading.Event()
+            self._stop = stop
+            self._thread = threading.Thread(target=self._loop, args=(stop,),
+                                            daemon=True, name="vaga-hunter-daemon")
             self._thread.start()
             return True
 
@@ -99,24 +109,30 @@ class DaemonController:
                 return False
             self._stop.set()
             self._thread.join(timeout=5)
-            self._thread = None
+            if not self._thread.is_alive():
+                self._thread = None
             self.next_run = None
             return True
 
-    def _loop(self) -> None:
+    def _loop(self, stop: threading.Event) -> None:
         log.info("daemon iniciado: intervalo %d min (±%d%%), janela %s-%s",
                  self.config.daemon.interval_minutes,
                  int(self.config.daemon.jitter * 100),
                  self.config.daemon.window_start, self.config.daemon.window_end)
-        while not self._stop.is_set():
-            now = self.clock()
-            if in_window(self.config.daemon, now):
-                self.run_once()
-                wait = next_interval_seconds(self.config.daemon)
-            else:
-                wait = 300.0  # fora da janela: reavalia em 5 min
+        while not stop.is_set():
+            try:
+                now = self.clock()
+                if in_window(self.config.daemon, now):
+                    self.run_once()
+                    wait = next_interval_seconds(self.config.daemon)
+                else:
+                    wait = 300.0  # fora da janela: reavalia em 5 min
+            except Exception as exc:
+                log.exception("erro no loop do daemon")
+                self.last_report = {"errors": [str(exc)]}
+                wait = 300.0
             self.next_run = self.clock() + timedelta(seconds=wait)
-            if self._stop.wait(timeout=wait):
+            if stop.wait(timeout=wait):
                 break
         log.info("daemon encerrado")
 

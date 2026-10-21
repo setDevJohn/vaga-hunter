@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -54,43 +55,56 @@ def _now() -> str:
 class Storage:
     def __init__(self, db_path: str | Path):
         self.db_path = str(db_path)
-        self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        # Conexão única compartilhada entre threads (Flask/daemon/busca manual):
+        # todo acesso passa pelo RLock para serializar statement+commit.
+        self._lock = threading.RLock()
+        self._conn = sqlite3.connect(self.db_path, check_same_thread=False,
+                                     timeout=15.0)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
 
     def close(self) -> None:
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
     # --- jobs -----------------------------------------------------------
 
     def exists(self, uid: str) -> bool:
-        row = self._conn.execute("SELECT 1 FROM jobs WHERE uid = ?", (uid,)).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT 1 FROM jobs WHERE uid = ?", (uid,)).fetchone()
         return row is not None
 
     def upsert_job(self, job: Job, score: float, details: dict[str, float]) -> bool:
-        """Insere ou atualiza `last_seen_at`. Retorna True se a vaga é nova."""
+        """Insere a vaga se nova; se já existe, só atualiza `last_seen_at`.
+
+        Score e descrição de vagas conhecidas são preservados (buscas seguintes
+        pulam o fetch da descrição e re-pontuariam com dados incompletos).
+        Retorna True se a vaga é nova.
+        """
         now = _now()
-        is_new = not self.exists(job.uid)
-        if is_new:
-            self._conn.execute(
-                """INSERT INTO jobs (uid, source, external_id, title, company, location,
-                       url, description, posted_at, remote, score, score_details,
-                       status, first_seen_at, last_seen_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (job.uid, job.source, job.external_id, job.title, job.company,
-                 job.location, job.url, job.description,
-                 job.posted_at.isoformat() if job.posted_at else None,
-                 None if job.remote is None else int(job.remote),
-                 score, json.dumps(details), JobStatus.NEW, now, now),
-            )
-        else:
-            self._conn.execute(
-                "UPDATE jobs SET last_seen_at = ?, score = ?, score_details = ? WHERE uid = ?",
-                (now, score, json.dumps(details), job.uid),
-            )
-        self._conn.commit()
+        with self._lock:  # check-then-insert atômico: todo acesso passa pelo lock
+            row = self._conn.execute(
+                "SELECT 1 FROM jobs WHERE uid = ?", (job.uid,)).fetchone()
+            is_new = row is None
+            if is_new:
+                self._conn.execute(
+                    """INSERT INTO jobs (uid, source, external_id, title, company,
+                           location, url, description, posted_at, remote, score,
+                           score_details, status, first_seen_at, last_seen_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (job.uid, job.source, job.external_id, job.title, job.company,
+                     job.location, job.url, job.description,
+                     job.posted_at.isoformat() if job.posted_at else None,
+                     None if job.remote is None else int(job.remote),
+                     score, json.dumps(details), JobStatus.NEW, now, now),
+                )
+            else:
+                self._conn.execute(
+                    "UPDATE jobs SET last_seen_at = ? WHERE uid = ?", (now, job.uid))
+            self._conn.commit()
         return is_new
 
     def list_jobs(self, status: str | None = None, min_score: float | None = None,
@@ -107,48 +121,57 @@ class Storage:
             query += " WHERE " + " AND ".join(clauses)
         query += " ORDER BY score DESC, first_seen_at DESC LIMIT ?"
         params.append(limit)
-        return self._conn.execute(query, params).fetchall()
+        with self._lock:
+            return self._conn.execute(query, params).fetchall()
 
     def set_status(self, uid: str, status: str) -> bool:
-        cur = self._conn.execute("UPDATE jobs SET status = ? WHERE uid = ?", (status, uid))
-        self._conn.commit()
+        with self._lock:
+            cur = self._conn.execute(
+                "UPDATE jobs SET status = ? WHERE uid = ?", (status, uid))
+            self._conn.commit()
         return cur.rowcount > 0
 
     def mark_notified(self, uids: list[str]) -> None:
-        self._conn.executemany(
-            "UPDATE jobs SET status = ? WHERE uid = ? AND status = ?",
-            [(JobStatus.NOTIFIED, uid, JobStatus.NEW) for uid in uids],
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.executemany(
+                "UPDATE jobs SET status = ? WHERE uid = ? AND status = ?",
+                [(JobStatus.NOTIFIED, uid, JobStatus.NEW) for uid in uids],
+            )
+            self._conn.commit()
 
     # --- runs -----------------------------------------------------------
 
     def record_run(self, source: str, query: str, found: int, new: int,
                    error: str | None = None, started_at: str | None = None) -> None:
-        self._conn.execute(
-            "INSERT INTO runs (started_at, finished_at, source, query, found, new, error) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (started_at or _now(), _now(), source, query, found, new, error),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO runs (started_at, finished_at, source, query, found, new, error) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (started_at or _now(), _now(), source, query, found, new, error),
+            )
+            self._conn.commit()
 
     def last_run(self) -> sqlite3.Row | None:
-        return self._conn.execute(
-            "SELECT * FROM runs ORDER BY id DESC LIMIT 1").fetchone()
+        with self._lock:
+            return self._conn.execute(
+                "SELECT * FROM runs ORDER BY id DESC LIMIT 1").fetchone()
 
     # --- meta / cooldown ------------------------------------------------
 
     def get_meta(self, key: str) -> str | None:
-        row = self._conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
         return row["value"] if row else None
 
     def set_meta(self, key: str, value: str) -> None:
-        self._conn.execute(
-            "INSERT INTO meta (key, value) VALUES (?, ?) "
-            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            (key, value),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO meta (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (key, value),
+            )
+            self._conn.commit()
 
     def set_cooldown(self, source: str, hours: float) -> None:
         until = datetime.now(timezone.utc) + timedelta(hours=hours)

@@ -16,7 +16,8 @@ ROLE_PATTERNS: dict[str, list[str]] = {
     "react native": ["react native"],
     "devops": ["devops", "dev ops"],
     "cloud": ["cloud engineer", "engenheiro de cloud", "engenheira de cloud"],
-    "platform": ["platform engineer", "engenheiro de plataforma", "plataforma"],
+    "platform": ["platform engineer", "engenheiro de plataforma",
+                 "engenheira de plataforma"],
     "developer": ["desenvolvedor", "desenvolvedora", "developer", "programador",
                   "programadora", "engenheiro de software", "software engineer"],
 }

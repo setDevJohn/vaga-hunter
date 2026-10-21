@@ -29,7 +29,12 @@ def client(tmp_path):
                               run_fn=lambda: None)
     app = create_app(config, storage=storage, daemon=daemon)
     app.testing = True
-    yield app.test_client(), daemon
+    client = app.test_client()
+    # POSTs exigem o header anti-CSRF
+    original_post = client.post
+    client.post = lambda *a, **k: original_post(
+        *a, **{**k, "headers": {**k.get("headers", {}), "X-Requested-With": "vaga-hunter"}})
+    yield client, daemon
     daemon.stop()
     storage.close()
 
@@ -90,3 +95,11 @@ def test_manual_search_conflict(client):
     # então apenas valida a resposta do status
     status = test_client.get("/api/status").get_json()
     assert "search" in status and "daemon" in status
+
+
+def test_post_without_header_rejected(client):
+    test_client, _ = client
+    import flask.testing
+    # chamada crua, sem o wrapper que injeta o header
+    resp = flask.testing.FlaskClient.post(test_client, "/api/daemon/start")
+    assert resp.status_code == 403

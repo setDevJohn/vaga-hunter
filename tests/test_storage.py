@@ -24,12 +24,14 @@ def test_upsert_new_then_dedup(storage):
     job = make_job()
     assert storage.upsert_job(job, 75.0, {"role_match": 30}) is True
     assert storage.exists(job.uid)
-    # segunda vez: não é nova, atualiza last_seen/score
-    assert storage.upsert_job(job, 80.0, {}) is False
+    # segunda vez: não é nova; score original é preservado (re-score de vaga
+    # conhecida rodaria sem descrição e rebaixaria o valor indevidamente)
+    assert storage.upsert_job(job, 10.0, {}) is False
     rows = storage.list_jobs()
     assert len(rows) == 1
-    assert rows[0]["score"] == 80.0
+    assert rows[0]["score"] == 75.0
     assert rows[0]["status"] == JobStatus.NEW
+    assert rows[0]["last_seen_at"] >= rows[0]["first_seen_at"]
 
 
 def test_list_filters(storage):

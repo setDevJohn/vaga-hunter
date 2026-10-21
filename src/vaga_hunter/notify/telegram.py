@@ -38,16 +38,22 @@ class TelegramNotifier(Notifier):
     def notify(self, jobs: list[Job]) -> None:
         for i in range(0, len(jobs), JOBS_PER_MESSAGE):
             batch = jobs[i:i + JOBS_PER_MESSAGE]
-            resp = requests.post(
-                API_URL.format(token=self.token),
-                json={
-                    "chat_id": self.chat_id,
-                    "text": format_message(batch),
-                    "parse_mode": "HTML",
-                    "disable_web_page_preview": True,
-                },
-                timeout=self.timeout,
-            )
+            # Erros nunca propagam o texto original: exceções de requests
+            # embutem a URL completa, que contém o token do bot.
+            try:
+                resp = requests.post(
+                    API_URL.format(token=self.token),
+                    json={
+                        "chat_id": self.chat_id,
+                        "text": format_message(batch),
+                        "parse_mode": "HTML",
+                        "disable_web_page_preview": True,
+                    },
+                    timeout=self.timeout,
+                )
+            except requests.RequestException as exc:
+                raise RuntimeError(
+                    f"Telegram inacessível ({type(exc).__name__})") from None
             if not resp.ok:
                 log.error("Telegram respondeu %d: %s", resp.status_code, resp.text[:200])
-                resp.raise_for_status()
+                raise RuntimeError(f"Telegram respondeu status {resp.status_code}")
