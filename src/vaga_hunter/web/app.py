@@ -3,8 +3,13 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
+import subprocess
 import threading
+import time
 from pathlib import Path
+
+import requests as _requests
 
 from flask import Flask, jsonify, render_template, request
 
@@ -84,6 +89,28 @@ def create_app(config: Config, storage: Storage | None = None,
         threading.Thread(target=_manual_search, daemon=True).start()
         return jsonify({"ok": True})
 
+    def _cdp_ok() -> bool:
+        try:
+            return _requests.get(f"{config.sources.posts.cdp_url}/json/version",
+                                 timeout=1.5).ok
+        except _requests.RequestException:
+            return False
+
+    def _chrome_running() -> bool:
+        result = subprocess.run(["pgrep", "-f", "google-chrome"],
+                                capture_output=True, text=True)
+        return bool(result.stdout.strip())
+
+    def _posts_status() -> dict:
+        enabled = config.sources.linkedin_posts and config.sources.posts.mode == "browser"
+        if not enabled:
+            return {"enabled": False, "state": "disabled"}
+        if _cdp_ok():
+            return {"enabled": True, "state": "ready"}
+        if _chrome_running():
+            return {"enabled": True, "state": "chrome_no_port"}
+        return {"enabled": True, "state": "chrome_closed"}
+
     @app.get("/api/status")
     def api_status():
         return jsonify({
@@ -91,7 +118,34 @@ def create_app(config: Config, storage: Storage | None = None,
                        "report": state.report},
             "daemon": daemon.status(),
             "counts": storage.count_by_status(),
+            "posts": _posts_status(),
         })
+
+    @app.post("/api/posts/prepare")
+    def api_posts_prepare():
+        """Deixa o Chrome pronto pra busca de posts: abre com a porta CDP se
+        estiver fechado. Não fecha um Chrome já aberto (dados do usuário)."""
+        status = _posts_status()
+        if not status["enabled"]:
+            return jsonify({"ok": False, "error": "fonte de posts desligada no config"}), 400
+        if status["state"] == "ready":
+            return jsonify({"ok": True, "state": "ready"})
+        if status["state"] == "chrome_no_port":
+            return jsonify({"ok": False, "state": "chrome_no_port",
+                            "error": "Chrome aberto sem a porta de depuração — "
+                                     "feche TODAS as janelas e clique de novo"}), 409
+        chrome = shutil.which("google-chrome") or shutil.which("google-chrome-stable")
+        if not chrome:
+            return jsonify({"ok": False, "error": "google-chrome não encontrado"}), 500
+        port = config.sources.posts.cdp_url.rsplit(":", 1)[-1]
+        subprocess.Popen([chrome, f"--remote-debugging-port={port}"],
+                         start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for _ in range(20):  # até ~10s pro Chrome subir
+            time.sleep(0.5)
+            if _cdp_ok():
+                return jsonify({"ok": True, "state": "ready", "launched": True})
+        return jsonify({"ok": False, "error": "Chrome não respondeu na porta CDP"}), 500
 
     @app.get("/api/jobs")
     def api_jobs():

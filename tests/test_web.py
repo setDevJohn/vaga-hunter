@@ -146,3 +146,15 @@ def test_applied_status(client):
     assert resp.status_code == 200
     jobs = test_client.get("/api/jobs?status=applied").get_json()
     assert [j["uid"] for j in jobs] == ["linkedin_jobs:1"]
+
+
+def test_posts_status_disabled(client):
+    test_client, _ = client
+    status = test_client.get("/api/status").get_json()
+    assert status["posts"] == {"enabled": False, "state": "disabled"}
+
+
+def test_posts_prepare_rejected_when_disabled(client):
+    test_client, _ = client
+    resp = test_client.post("/api/posts/prepare")
+    assert resp.status_code == 400

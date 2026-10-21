@@ -221,7 +221,23 @@ function renderStatus(data) {
   if (json === state.lastStatusJson) return;
   state.lastStatusJson = json;
 
-  const { search, daemon, counts } = data;
+  const { search, daemon, counts, posts } = data;
+
+  // pill da fonte de posts (só aparece se ligada no config)
+  const postsPill = $("#posts-pill");
+  if (posts?.enabled) {
+    postsPill.classList.remove("hidden");
+    state.postsState = posts.state;
+    postsPill.classList.toggle("on", posts.state === "ready");
+    postsPill.classList.toggle("warn", posts.state === "chrome_no_port");
+    $("#posts-label").textContent = {
+      ready: "Posts prontos",
+      chrome_no_port: "Posts: Chrome sem porta",
+      chrome_closed: "Posts: abrir Chrome",
+    }[posts.state] || "Posts";
+  } else {
+    postsPill.classList.add("hidden");
+  }
   state.daemonRunning = daemon.running;
 
   const pill = $("#daemon-pill");
@@ -298,6 +314,23 @@ $("#btn-search").addEventListener("click", async () => {
   } catch { return; }
   if (!state.searchPolling) state.searchPolling = setInterval(() => refreshStatus(), 1000);
   refreshStatus(true);
+});
+
+$("#posts-pill").addEventListener("click", async () => {
+  // Automatiza o fluxo de posts: garante o Chrome com CDP e dispara a busca
+  if (state.postsState === "chrome_no_port") {
+    toast("Feche TODAS as janelas do Chrome e clique de novo — " +
+          "preciso reabrir com a porta de depuração", "danger");
+    return;
+  }
+  $("#posts-label").textContent = "Preparando Chrome…";
+  let prep;
+  try {
+    prep = await api("/api/posts/prepare", { method: "POST" });
+  } catch { refreshStatus(true); return; }
+  if (prep.launched) toast("Chrome aberto — confira se está logado no LinkedIn", "ok");
+  refreshStatus(true);
+  if (prep.state === "ready") $("#btn-search").click();
 });
 
 $("#daemon-pill").addEventListener("click", async () => {
