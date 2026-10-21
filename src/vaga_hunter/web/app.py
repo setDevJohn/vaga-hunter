@@ -31,7 +31,8 @@ class SearchState:
     def __init__(self):
         self.lock = threading.Lock()
         self.running = False
-        self.what = "jobs"            # jobs | posts (tipo da busca em andamento)
+        self.what = "jobs"            # jobs | posts | daemon (origem da atividade atual)
+        self.daemon_busy = False
         self.cancel = threading.Event()
         self.messages: list[str] = []
         self.report: dict | None = None
@@ -47,8 +48,28 @@ def create_app(config: Config, storage: Storage | None = None,
     if not db_path.is_absolute():
         db_path = config.base_dir / db_path
     storage = storage or Storage(db_path)
-    daemon = daemon or DaemonController(config, storage)
     state = SearchState()
+
+    def _daemon_run():
+        """Busca do daemon com log na UI: painel sempre mostra a atividade atual."""
+        from ..notify import build_notifiers
+        state.messages = []
+        state.what = "daemon"
+        state.daemon_busy = True
+        try:
+            sources = [s for s in build_sources(config, storage)
+                       if not s.requires_auth]  # daemon nunca busca posts
+            scorer = Scorer(config.profile, config.scoring)
+            notifiers = build_notifiers(config)
+            report = run_search(config, storage, sources, scorer, notifiers,
+                                progress=state.log)
+            state.log(f"Daemon: {report.found} vagas, {report.new} novas, "
+                      f"{report.notified} notificadas.")
+            return report
+        finally:
+            state.daemon_busy = False
+
+    daemon = daemon or DaemonController(config, storage, run_fn=_daemon_run)
 
     def _manual_search(what: str) -> None:
         from ..notify import build_notifiers
@@ -132,7 +153,7 @@ def create_app(config: Config, storage: Storage | None = None,
         return jsonify({
             "search": {"running": state.running, "what": state.what,
                        "messages": state.messages[-50:], "report": state.report},
-            "daemon": daemon.status(),
+            "daemon": {**daemon.status(), "busy": state.daemon_busy},
             "counts": storage.count_by_status(),
             "posts": _posts_status(),
         })

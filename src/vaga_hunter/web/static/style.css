@@ -95,6 +95,9 @@ body {
 }
 .btn.loading .spinner { display: inline-block; }
 .btn:not(.primary) .spinner { border-color: rgb(127 127 127 / .35); border-top-color: var(--accent); }
+.btn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+.btn .dot[data-state="ready"] { background: var(--ok); }
+.btn.loading .dot { display: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* daemon pill */

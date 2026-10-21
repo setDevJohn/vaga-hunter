@@ -272,11 +272,15 @@ function renderStatus(data) {
   if (posts?.enabled) {
     postsBtn.classList.remove("hidden");
     state.postsState = posts.state;
-    postsBtn.disabled = search.running;
+    postsBtn.disabled = search.running || daemon.busy;
     postsBtn.classList.toggle("loading", postsSearching);
+    // status do Chrome direto no botão: bolinha + rótulo
+    postsBtn.querySelector(".dot").dataset.state = posts.state;
     postsBtn.querySelector(".btn-label").textContent = postsSearching
       ? "Buscando posts…"
-      : (posts.state === "ready" ? "Buscar posts" : "Buscar posts (abre Chrome)");
+      : (posts.state === "ready"
+          ? "Buscar posts · Chrome pronto"
+          : "Buscar posts · Chrome fechado");
   } else {
     postsBtn.classList.add("hidden");
   }
@@ -309,19 +313,29 @@ function renderStatus(data) {
   $("#btn-cancel").classList.toggle("hidden", !search.running);
 
   const logCard = $("#log-card");
+  const active = search.running || daemon.busy;
   if (search.messages.length) {
     logCard.classList.remove("hidden");
-    $("#log-title").innerHTML = search.running
-      ? '<span class="pulse-dot" aria-hidden="true"></span> Busca em andamento…'
-      : "Busca concluída";
+    const titles = {
+      jobs: ["Busca de vagas em andamento…", "Busca de vagas concluída"],
+      posts: ["Busca de posts em andamento…", "Busca de posts concluída"],
+      daemon: ["Daemon buscando…", "Daemon: última busca"],
+    };
+    const [busyTitle, doneTitle] = titles[search.what] || titles.jobs;
+    $("#log-title").innerHTML = active
+      ? `<span class="pulse-dot" aria-hidden="true"></span> ${busyTitle}`
+      : doneTitle;
     const log = $("#log");
     log.textContent = search.messages.join("\n");
     log.scrollTop = log.scrollHeight;
   }
-  if (!search.running && state.searchPolling) {
+  if (daemon.busy && !state.searchPolling) {
+    state.searchPolling = setInterval(() => refreshStatus(), 1000);  // acompanha o daemon
+  }
+  if (!active && state.searchPolling) {
     clearInterval(state.searchPolling);
     state.searchPolling = null;
-    if (search.report) {
+    if (search.report && search.what !== "daemon") {
       toast(`${search.report.found} vagas, ${search.report.new} novas, ${search.report.notified} notificadas`,
             search.report.errors?.length ? "danger" : "ok");
     }
