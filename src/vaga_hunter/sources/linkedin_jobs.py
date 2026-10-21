@@ -139,8 +139,11 @@ class LinkedInJobsSource(JobSource):
         self.skip_detail = skip_detail or (lambda uid: False)
 
     def search(self, filters: SearchFilters) -> Iterator[Job]:
+        # O endpoint guest varia o tamanho da página (hoje ~10 por request),
+        # então o start avança pelo que veio de fato — parar por "página
+        # incompleta" cortava a busca na primeira página.
+        start = 0
         for page in range(filters.max_pages):
-            start = page * PAGE_SIZE
             resp = self.session.get(PAGE_URL, params=build_params(filters, start))
             jobs = parse_search_page(resp.text)
             if not jobs:
@@ -152,8 +155,7 @@ class LinkedInJobsSource(JobSource):
                 if not self.skip_detail(job.uid):
                     job.description = self._fetch_description(job.external_id)
                 yield job
-            if len(jobs) < PAGE_SIZE:
-                break
+            start += len(jobs)
 
     def _fetch_description(self, job_id: str) -> str:
         try:

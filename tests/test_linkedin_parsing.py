@@ -32,3 +32,28 @@ def test_parse_job_detail_extracts_description():
 
 def test_parse_job_detail_empty():
     assert parse_job_detail("<html></html>") == ""
+
+
+def test_search_paginates_by_actual_page_size(monkeypatch):
+    """start avança pelo nº real de vagas da página (LinkedIn varia o tamanho)."""
+    from pathlib import Path
+    from vaga_hunter.models import SearchFilters
+    from vaga_hunter.sources.linkedin_jobs import LinkedInJobsSource
+
+    page_html = (Path(__file__).parent / "fixtures" / "search_page.html").read_text()
+    starts = []
+
+    class FakeResp:
+        def __init__(self, text): self.text = text
+
+    class FakeSession:
+        def get(self, url, params=None):
+            starts.append(params["start"])
+            # 2 páginas com conteúdo, terceira vazia
+            return FakeResp(page_html if len(starts) <= 2 else "<html></html>")
+
+    source = LinkedInJobsSource(FakeSession(), skip_detail=lambda uid: True)
+    jobs = list(source.search(SearchFilters(keywords="x", max_pages=5)))
+    per_page = len(jobs) // 2
+    assert per_page > 0
+    assert starts == ["0", str(per_page), str(per_page * 2)]
