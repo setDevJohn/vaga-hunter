@@ -19,7 +19,7 @@ const ICONS = {
 };
 
 const state = {
-  filterStatus: "", minScore: "",
+  filterStatus: "", minScore: "", textFilter: "",
   jobs: [], knownUids: new Set(), firstLoad: true,
   daemonRunning: false, searchPolling: null, expandedUid: null,
   lastStatusJson: "",
@@ -81,6 +81,18 @@ function relDate(iso) {
   if (days === 1) return "ontem";
   if (days < 30) return `há ${days} dias`;
   return `há ${Math.floor(days / 30)} mês(es)`;
+}
+
+function normalize(text) {
+  return String(text || "").toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+function visibleJobs() {
+  if (!state.textFilter) return state.jobs;
+  const needle = normalize(state.textFilter);
+  return state.jobs.filter((j) =>
+    normalize(j.title).includes(needle) || normalize(j.company).includes(needle));
 }
 
 function scoreBand(score) {
@@ -155,22 +167,27 @@ async function loadJobs() {
   const jobs = await api(`/api/jobs?${params}`);
   const previousKnown = state.knownUids;
   state.jobs = jobs;
+  renderJobs(previousKnown);
+  for (const job of jobs) state.knownUids.add(job.uid);
+  state.firstLoad = false;
+}
+
+function renderJobs(previousKnown = null) {
   state.expandedUid = null;
+  const jobs = visibleJobs();
 
   $("#jobs").innerHTML = jobs.map(jobCard).join("");
-  if (!state.firstLoad) {
+  if (previousKnown && !state.firstLoad) {
     for (const el of $$(".job")) {
       if (!previousKnown.has(el.dataset.uid)) el.classList.add("flash");
     }
   }
-  for (const job of jobs) state.knownUids.add(job.uid);
-  state.firstLoad = false;
 
   $("#jobs-count").textContent = `${jobs.length} vaga${jobs.length === 1 ? "" : "s"}`;
   const empty = $("#empty-state");
   if (jobs.length === 0) {
     empty.classList.remove("hidden");
-    const filtered = state.filterStatus || state.minScore;
+    const filtered = state.filterStatus || state.minScore || state.textFilter;
     $("#empty-text").textContent = filtered ? "Nada com esses filtros." : "Nenhuma vaga ainda.";
     $("#empty-action").textContent = filtered ? "Limpar filtros" : "Buscar agora";
   } else {
@@ -381,15 +398,25 @@ for (const chip of $$(".chip")) {
   });
 }
 
+let textDebounce = null;
+$("#filter-text").addEventListener("input", () => {
+  clearTimeout(textDebounce);
+  textDebounce = setTimeout(() => {
+    state.textFilter = $("#filter-text").value.trim();
+    renderJobs();  // filtro local, sem refetch
+  }, 200);
+});
+
 $("#filter-score").addEventListener("change", () => {
   state.minScore = $("#filter-score").value;
   loadJobs();
 });
 
 $("#empty-action").addEventListener("click", () => {
-  if (state.filterStatus || state.minScore) {
-    state.filterStatus = ""; state.minScore = "";
+  if (state.filterStatus || state.minScore || state.textFilter) {
+    state.filterStatus = ""; state.minScore = ""; state.textFilter = "";
     $("#filter-score").value = "";
+    $("#filter-text").value = "";
     $$(".chip").forEach((c) => c.classList.toggle("active", c.dataset.status === ""));
     loadJobs();
   } else {
