@@ -45,6 +45,10 @@ def build_sources(config: Config, storage: Storage) -> list[JobSource]:
         from .sources.catho import CathoSource
         sources.append(CathoSource(_polite_session(config),
                                    skip_detail=storage.exists))
+    if config.sources.vagas_com_br.enabled:
+        from .sources.vagas_com_br import VagasComBrSource
+        sources.append(VagasComBrSource(_polite_session(config),
+                                        skip_detail=storage.exists))
     if config.sources.linkedin_posts.enabled and config.sources.posts.mode == "browser":
         from .sources.linkedin_posts import LinkedInPostsSource
         sources.append(LinkedInPostsSource(config.sources.posts))

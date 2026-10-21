@@ -6,7 +6,6 @@ JSON-LD JobPosting com descrição completa e datePosted.
 """
 from __future__ import annotations
 
-import json
 import logging
 import re
 import unicodedata
@@ -17,6 +16,7 @@ from bs4 import BeautifulSoup
 
 from ..http_client import PoliteSession
 from ..models import Job, SearchFilters
+from ._jsonld import jobposting_description
 from .base import JobSource
 from .infojobs import time_range_to_timedelta
 
@@ -115,19 +115,10 @@ def parse_search_page(html: str, now: datetime | None = None) -> list[Job]:
 
 def parse_job_detail(html: str) -> str:
     """Descrição do JSON-LD JobPosting; fallback no og:description."""
+    description = jobposting_description(html)
+    if description:
+        return description
     soup = BeautifulSoup(html, "lxml")
-    for script in soup.find_all("script", type="application/ld+json"):
-        try:
-            data = json.loads(script.string or "")
-        except (ValueError, TypeError):
-            continue
-        items = data if isinstance(data, list) else [data]
-        for item in items:
-            if isinstance(item, dict) and item.get("@type") == "JobPosting":
-                description = item.get("description", "")
-                if description:
-                    text = BeautifulSoup(description, "lxml").get_text(" ", strip=True)
-                    return text
     meta = soup.select_one('meta[property="og:description"]')
     return meta.get("content", "") if meta else ""
 

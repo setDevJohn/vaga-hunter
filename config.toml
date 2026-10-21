@@ -82,8 +82,16 @@ db_path = "vaga_hunter.db"
 
 [sources.catho]
 enabled = true
-queries = ["desenvolvedor", "programador", "desenvolvedor web", "analista de sistemas"]
+queries = ["desenvolvedor", "programador", "desenvolvedor web"]
 location = ""
 time_range = "r3d"
 remote = ""
 max_pages = 3
+
+[sources.vagas_com_br]
+enabled = true
+queries = ["programador", "ti"]
+location = ""
+time_range = "r3d"
+remote = ""
+max_pages = 2
