@@ -45,7 +45,7 @@ remote = ""
 max_pages = 0
 
 [sources.linkedin_posts]
-enabled = true
+enabled = false
 queries = ["(dev OR desenvolvedor AND Fullstack OR Frontend)"]
 location = ""
 time_range = ""
@@ -53,7 +53,7 @@ remote = ""
 max_pages = 0
 
 [sources.infojobs]
-enabled = true
+enabled = false
 queries = ["desenvolvedor", "programador", "desenvolvedor web"]
 location = ""
 time_range = "r7d"
