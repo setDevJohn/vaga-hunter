@@ -6,7 +6,7 @@ queries = ["desenvolvedor fullstack", "frontend developer", "backend developer",
 location = "Brasil"
 time_range = "r2h"        # r24h | r3d | r7d | r1m
 remote = ""          # remote | hybrid | onsite | "" (qualquer)
-max_pages_per_query = 5    # 25 vagas/página — mantenha baixo
+max_pages_per_query = 3    # 25 vagas/página — mantenha baixo
 
 [profile]
 roles = ["fullstack", "frontend", "backend", "react native", "devops", "cloud", "platform"]
