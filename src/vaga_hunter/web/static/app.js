@@ -131,7 +131,8 @@ function jobCard(job) {
   const status = job.status;
   const isNew = status === "new";
   const badges = [];
-  const SOURCE_PT = { linkedin_jobs: "LinkedIn", linkedin_posts: "LinkedIn · post", infojobs: "InfoJobs" };
+  const SOURCE_PT = { linkedin_jobs: "LinkedIn", linkedin_posts: "LinkedIn · post",
+                      infojobs: "InfoJobs", catho: "Catho" };
   badges.push(`<span class="badge outline source">${esc(SOURCE_PT[job.source] || job.source)}</span>`);
   const MODALITY_PT = { remote: "🏠 remoto", hybrid: "🔄 híbrido", onsite: "🏢 presencial" };
   if (job.modality) badges.push(`<span class="badge outline modality-${esc(job.modality)}">${MODALITY_PT[job.modality]}</span>`);
@@ -360,6 +361,7 @@ const SOURCE_PAGES = {
   linkedin_jobs: "LinkedIn Jobs",
   linkedin_posts: "LinkedIn Posts",
   infojobs: "InfoJobs",
+  catho: "Catho",
 };
 
 function fillTimeSelect(select, value, inheritLabel = null) {

@@ -41,6 +41,10 @@ def build_sources(config: Config, storage: Storage) -> list[JobSource]:
         # sessão própria: delays/circuit breaker independentes por site
         sources.append(InfoJobsSource(_polite_session(config),
                                       skip_detail=storage.exists))
+    if config.sources.catho.enabled:
+        from .sources.catho import CathoSource
+        sources.append(CathoSource(_polite_session(config),
+                                   skip_detail=storage.exists))
     if config.sources.linkedin_posts.enabled and config.sources.posts.mode == "browser":
         from .sources.linkedin_posts import LinkedInPostsSource
         sources.append(LinkedInPostsSource(config.sources.posts))

@@ -79,3 +79,11 @@ desktop = true
 
 [storage]
 db_path = "vaga_hunter.db"
+
+[sources.catho]
+enabled = true
+queries = ["desenvolvedor", "programador"]
+location = ""
+time_range = "r3d"
+remote = ""
+max_pages = 2
