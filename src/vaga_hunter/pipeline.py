@@ -91,7 +91,7 @@ def run_search(config: Config, storage: Storage, sources: list[JobSource],
             if error and "consecutivas" in error:
                 break  # circuit breaker: não insiste nas próximas queries
 
-    if to_notify and not dry_run:
+    if to_notify and notifiers and not dry_run:
         to_notify.sort(key=lambda item: item[1], reverse=True)
         jobs = [job for job, _ in to_notify]
         for notifier in notifiers:

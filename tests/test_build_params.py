@@ -43,5 +43,12 @@ def test_remote_filter():
     assert "f_WT" not in params2
 
 
+def test_geo_id_for_brasil():
+    params = build_params(SearchFilters(keywords="x", location="Brasil"))
+    assert params["geoId"] == "106057199"
+    params2 = build_params(SearchFilters(keywords="x", location="São Paulo"))
+    assert "geoId" not in params2
+
+
 def test_pagination_start():
     assert build_params(SearchFilters(keywords="x"), start=50)["start"] == "50"

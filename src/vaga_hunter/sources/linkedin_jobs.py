@@ -29,6 +29,8 @@ TIME_RANGES = {  # f_TPR em segundos
     "r1m": "r2592000",
 }
 WORKPLACE = {"onsite": "1", "remote": "2", "hybrid": "3"}  # f_WT
+# Sem geoId o endpoint guest ignora `location` e devolve vagas do mundo todo.
+GEO_IDS = {"brasil": "106057199", "brazil": "106057199"}
 
 
 def build_params(filters: SearchFilters, start: int = 0) -> dict[str, str]:
@@ -49,6 +51,9 @@ def build_params(filters: SearchFilters, start: int = 0) -> dict[str, str]:
         "sortBy": "DD",
         "start": str(start),
     }
+    geo_id = GEO_IDS.get((location or "Brasil").strip().lower())
+    if geo_id:
+        params["geoId"] = geo_id
     if filters.remote and filters.remote in WORKPLACE:
         params["f_WT"] = WORKPLACE[filters.remote]
     if filters.job_type:
