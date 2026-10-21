@@ -48,6 +48,7 @@ async function loadJobs() {
       <td><span class="badge ${esc(job.status)}">${esc(job.status)}</span></td>
       <td class="actions">
         <button data-status="interested" title="Interessado">⭐</button>
+        <button data-status="applied" title="Apliquei nessa vaga">📨</button>
         <button data-status="discarded" title="Descartar">🗑️</button>
         <button data-status="seen" title="Marcar como vista">👁️</button>
       </td>

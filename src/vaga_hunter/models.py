@@ -10,6 +10,7 @@ class JobStatus(StrEnum):
     NEW = "new"
     NOTIFIED = "notified"
     INTERESTED = "interested"
+    APPLIED = "applied"
     DISCARDED = "discarded"
     SEEN = "seen"
 

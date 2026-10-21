@@ -138,3 +138,11 @@ def test_update_config_rejects_invalid(client):
         "queries": ["x"], "time_range": "errado"}).status_code == 400
     assert test_client.post("/api/config", json={
         "queries": ["x"], "remote": "lua"}).status_code == 400
+
+
+def test_applied_status(client):
+    test_client, _ = client
+    resp = test_client.post("/api/jobs/linkedin_jobs:1/status", json={"status": "applied"})
+    assert resp.status_code == 200
+    jobs = test_client.get("/api/jobs?status=applied").get_json()
+    assert [j["uid"] for j in jobs] == ["linkedin_jobs:1"]

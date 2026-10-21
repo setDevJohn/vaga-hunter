@@ -54,6 +54,7 @@ td a { color: var(--accent); text-decoration: none; }
 td a:hover { text-decoration: underline; }
 .badge { padding: 2px 8px; border-radius: 10px; font-size: 12px; background: var(--bg); }
 .badge.interested { background: var(--ok); color: #fff; }
+.badge.applied { background: var(--accent); color: #fff; }
 .badge.discarded { background: var(--warn); color: #fff; }
 .actions button { padding: 3px 8px; font-size: 12.5px; margin-right: 4px; }
 @media (max-width: 700px) {

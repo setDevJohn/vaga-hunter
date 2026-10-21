@@ -2,17 +2,11 @@
 
 [search]
 # Cada query vira uma busca separada no LinkedIn
-queries = [
-    "desenvolvedor fullstack",
-    "frontend developer",
-    "backend developer",
-    "react native",
-    "devops junior",
-]
+queries = ["desenvolvedor fullstack", "frontend developer", "backend developer", "react native", "devops junior"]
 location = "Brasil"
 time_range = "r24h"        # r24h | r3d | r7d | r1m
-remote = "remote"          # remote | hybrid | onsite | "" (qualquer)
-max_pages_per_query = 3    # 25 vagas/página — mantenha baixo
+remote = ""          # remote | hybrid | onsite | "" (qualquer)
+max_pages_per_query = 5    # 25 vagas/página — mantenha baixo
 
 [profile]
 roles = ["fullstack", "frontend", "backend", "react native", "devops", "cloud", "platform"]
@@ -24,7 +18,7 @@ exclude_keywords_soft = ["senior", "sênior", "sr.", "especialista", "lead", "pr
 include_keywords = ["react", "typescript", "node", "python", "javascript", "aws", "docker"]
 
 [scoring]
-threshold = 60             # só notifica vagas com score >= threshold
+threshold = 60.0             # só notifica vagas com score >= threshold
 
 [scoring.weights]
 role_match = 30
