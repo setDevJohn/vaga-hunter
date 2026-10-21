@@ -29,6 +29,7 @@ recency = 15
 
 [sources]
 linkedin_jobs = true
+infojobs = true           # busca pública no InfoJobs Brasil (sem login)
 linkedin_posts = true     # requer sessão logada — risco baixo mas NÃO zero. Veja README.
 
 [sources.posts]

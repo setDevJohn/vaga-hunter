@@ -46,6 +46,7 @@ class PostsConfig:
 class SourcesConfig:
     linkedin_jobs: bool = True
     linkedin_posts: bool = False
+    infojobs: bool = False
     posts: PostsConfig = field(default_factory=PostsConfig)
 
 
@@ -110,6 +111,7 @@ def load_config(path: str | Path | None = None) -> Config:
         sources = raw.get("sources", {})
         cfg.sources.linkedin_jobs = bool(sources.get("linkedin_jobs", True))
         cfg.sources.linkedin_posts = bool(sources.get("linkedin_posts", False))
+        cfg.sources.infojobs = bool(sources.get("infojobs", False))
         _apply(cfg.sources.posts, sources.get("posts", {}))
         _apply(cfg.http, raw.get("http", {}))
         _apply(cfg.daemon, raw.get("daemon", {}))

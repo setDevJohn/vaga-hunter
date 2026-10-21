@@ -22,16 +22,25 @@ ProgressFn = Callable[[str], None]
 _RUN_LOCK = threading.Lock()
 
 
+def _polite_session(config: Config) -> PoliteSession:
+    return PoliteSession(
+        min_delay=config.http.min_delay,
+        max_delay=config.http.max_delay,
+        max_retries=config.http.max_retries,
+        breaker_threshold=config.http.circuit_breaker_threshold,
+    )
+
+
 def build_sources(config: Config, storage: Storage) -> list[JobSource]:
     sources: list[JobSource] = []
     if config.sources.linkedin_jobs:
-        session = PoliteSession(
-            min_delay=config.http.min_delay,
-            max_delay=config.http.max_delay,
-            max_retries=config.http.max_retries,
-            breaker_threshold=config.http.circuit_breaker_threshold,
-        )
-        sources.append(LinkedInJobsSource(session, skip_detail=storage.exists))
+        sources.append(LinkedInJobsSource(_polite_session(config),
+                                          skip_detail=storage.exists))
+    if config.sources.infojobs:
+        from .sources.infojobs import InfoJobsSource
+        # sessão própria: delays/circuit breaker independentes por site
+        sources.append(InfoJobsSource(_polite_session(config),
+                                      skip_detail=storage.exists))
     if config.sources.linkedin_posts and config.sources.posts.mode == "browser":
         from .sources.linkedin_posts import LinkedInPostsSource
         sources.append(LinkedInPostsSource(config.sources.posts))
