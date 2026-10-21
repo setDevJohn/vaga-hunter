@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
-from ..config import Config
+from ..config import Config, save_search_params
 from ..daemon import DaemonController
 from ..models import JobStatus
 from ..pipeline import build_sources, run_search
@@ -107,6 +107,50 @@ def create_app(config: Config, storage: Storage | None = None,
         if not storage.set_status(uid, new_status):
             return jsonify({"ok": False, "error": "vaga não encontrada"}), 404
         return jsonify({"ok": True})
+
+    @app.get("/api/config")
+    def api_config_get():
+        return jsonify({
+            "queries": config.search.queries,
+            "location": config.search.location,
+            "time_range": config.search.time_range,
+            "remote": config.search.remote or "",
+            "max_pages_per_query": config.search.max_pages_per_query,
+            "threshold": config.scoring.threshold,
+        })
+
+    @app.post("/api/config")
+    def api_config_set():
+        data = request.get_json(silent=True) or {}
+        errors = []
+
+        queries = [q.strip() for q in data.get("queries", []) if str(q).strip()]
+        if not queries:
+            errors.append("informe pelo menos uma busca")
+        time_range = data.get("time_range", config.search.time_range)
+        if time_range not in {"r24h", "r3d", "r7d", "r1m"}:
+            errors.append("time_range inválido")
+        remote = data.get("remote", "")
+        if remote not in {"", "remote", "hybrid", "onsite"}:
+            errors.append("remote inválido")
+        try:
+            max_pages = max(1, min(10, int(data.get(
+                "max_pages_per_query", config.search.max_pages_per_query))))
+            threshold = max(0.0, min(100.0, float(data.get(
+                "threshold", config.scoring.threshold))))
+        except (TypeError, ValueError):
+            errors.append("número inválido")
+        if errors:
+            return jsonify({"ok": False, "error": "; ".join(errors)}), 400
+
+        config.search.queries = queries
+        config.search.location = str(data.get("location", config.search.location)).strip() or "Brasil"
+        config.search.time_range = time_range
+        config.search.remote = remote or None
+        config.search.max_pages_per_query = max_pages
+        config.scoring.threshold = threshold
+        saved = save_search_params(config)  # vale na hora; persiste se há config.toml
+        return jsonify({"ok": True, "saved_to_file": saved})
 
     @app.post("/api/daemon/start")
     def api_daemon_start():

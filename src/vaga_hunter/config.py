@@ -84,6 +84,7 @@ class Config:
     notify: NotifyConfig = field(default_factory=NotifyConfig)
     db_path: str = "vaga_hunter.db"
     base_dir: Path = field(default_factory=Path.cwd)
+    config_path: Path | None = None
 
 
 def load_config(path: str | Path | None = None) -> Config:
@@ -97,6 +98,7 @@ def load_config(path: str | Path | None = None) -> Config:
         with open(path, "rb") as f:
             raw = tomllib.load(f)
         cfg.base_dir = path.parent.resolve()
+        cfg.config_path = path.resolve()
         _apply(cfg.search, raw.get("search", {}))
         _apply(cfg.profile, raw.get("profile", {}))
         scoring = raw.get("scoring", {})
@@ -115,6 +117,26 @@ def load_config(path: str | Path | None = None) -> Config:
     cfg.notify.telegram_token = os.environ.get("VAGA_HUNTER_TELEGRAM_TOKEN", "")
     cfg.notify.telegram_chat_id = os.environ.get("VAGA_HUNTER_TELEGRAM_CHAT_ID", "")
     return cfg
+
+
+def save_search_params(cfg: Config) -> bool:
+    """Persiste [search] e scoring.threshold no config.toml, preservando
+    comentários e o resto do arquivo. Retorna False se não há arquivo."""
+    if cfg.config_path is None or not cfg.config_path.exists():
+        return False
+    import tomlkit
+
+    doc = tomlkit.parse(cfg.config_path.read_text())
+    search = doc.setdefault("search", tomlkit.table())
+    search["queries"] = cfg.search.queries
+    search["location"] = cfg.search.location
+    search["time_range"] = cfg.search.time_range
+    search["remote"] = cfg.search.remote or ""
+    search["max_pages_per_query"] = cfg.search.max_pages_per_query
+    scoring = doc.setdefault("scoring", tomlkit.table())
+    scoring["threshold"] = cfg.scoring.threshold
+    cfg.config_path.write_text(tomlkit.dumps(doc))
+    return True
 
 
 def _apply(obj: object, data: dict) -> None:

@@ -16,6 +16,38 @@
   </div>
 </header>
 
+<details id="params" class="params">
+  <summary>⚙️ Parâmetros de busca</summary>
+  <div class="params-grid">
+    <label class="full">Buscas (uma por linha)
+      <textarea id="cfg-queries" rows="5" spellcheck="false"></textarea>
+    </label>
+    <label>Localização <input type="text" id="cfg-location"></label>
+    <label>Período
+      <select id="cfg-time-range">
+        <option value="r24h">últimas 24h</option>
+        <option value="r3d">últimos 3 dias</option>
+        <option value="r7d">últimos 7 dias</option>
+        <option value="r1m">último mês</option>
+      </select>
+    </label>
+    <label>Modalidade
+      <select id="cfg-remote">
+        <option value="">qualquer</option>
+        <option value="remote">remoto</option>
+        <option value="hybrid">híbrido</option>
+        <option value="onsite">presencial</option>
+      </select>
+    </label>
+    <label>Páginas por busca <input type="number" id="cfg-max-pages" min="1" max="10"></label>
+    <label>Score p/ notificar <input type="number" id="cfg-threshold" min="0" max="100" step="5"></label>
+    <div class="params-actions">
+      <button id="btn-save-config" class="primary">Salvar</button>
+      <span id="cfg-feedback" class="muted"></span>
+    </div>
+  </div>
+</details>
+
 <section id="log-panel" class="hidden">
   <pre id="log"></pre>
 </section>

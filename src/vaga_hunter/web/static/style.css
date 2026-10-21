@@ -22,6 +22,20 @@ button.toggle.on { background: var(--ok); color: #fff; border: none; }
 button:disabled { opacity: .5; cursor: wait; }
 .muted { color: var(--muted); font-size: 13px; }
 .hidden { display: none; }
+.params { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+          margin-bottom: 16px; }
+.params summary { padding: 10px 14px; cursor: pointer; font-weight: 600; user-select: none; }
+.params-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+               padding: 0 14px 14px; }
+.params-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 13px;
+                     color: var(--muted); }
+.params-grid label.full { grid-column: 1 / -1; }
+.params-grid input, .params-grid select, .params-grid textarea {
+  padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text); font: inherit; font-size: 14px; width: 100%; }
+.params-grid textarea { resize: vertical; font-family: ui-monospace, monospace; }
+.params-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; }
+@media (max-width: 700px) { .params-grid { grid-template-columns: 1fr; } }
 #log-panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
              padding: 8px 12px; margin-bottom: 16px; max-height: 180px; overflow-y: auto; }
 #log { margin: 0; font-size: 12.5px; white-space: pre-wrap; }

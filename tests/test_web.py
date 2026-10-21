@@ -103,3 +103,38 @@ def test_post_without_header_rejected(client):
     # chamada crua, sem o wrapper que injeta o header
     resp = flask.testing.FlaskClient.post(test_client, "/api/daemon/start")
     assert resp.status_code == 403
+
+
+def test_get_config(client):
+    test_client, _ = client
+    cfg = test_client.get("/api/config").get_json()
+    assert "queries" in cfg and "threshold" in cfg and "time_range" in cfg
+
+
+def test_update_config_applies_in_memory(client):
+    test_client, _ = client
+    resp = test_client.post("/api/config", json={
+        "queries": ["python backend", "  ", "react"],
+        "location": "São Paulo",
+        "time_range": "r3d",
+        "remote": "remote",
+        "max_pages_per_query": 2,
+        "threshold": 70,
+    })
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["ok"] is True and body["saved_to_file"] is False  # sem config.toml
+    cfg = test_client.get("/api/config").get_json()
+    assert cfg["queries"] == ["python backend", "react"]  # vazios removidos
+    assert cfg["location"] == "São Paulo"
+    assert cfg["time_range"] == "r3d"
+    assert cfg["threshold"] == 70
+
+
+def test_update_config_rejects_invalid(client):
+    test_client, _ = client
+    assert test_client.post("/api/config", json={"queries": []}).status_code == 400
+    assert test_client.post("/api/config", json={
+        "queries": ["x"], "time_range": "errado"}).status_code == 400
+    assert test_client.post("/api/config", json={
+        "queries": ["x"], "remote": "lua"}).status_code == 400
