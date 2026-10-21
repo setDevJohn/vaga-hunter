@@ -53,7 +53,8 @@ class SourceSettings:
     max_pages: int = 0                                 # 0 = padrão
 
 
-SOURCE_NAMES = ("linkedin_jobs", "linkedin_posts", "infojobs", "catho", "vagas_com_br")
+SOURCE_NAMES = ("linkedin_jobs", "linkedin_posts", "infojobs", "catho",
+                "vagas_com_br", "programathor")
 
 
 @dataclass
@@ -64,6 +65,7 @@ class SourcesConfig:
     infojobs: SourceSettings = field(default_factory=SourceSettings)
     catho: SourceSettings = field(default_factory=SourceSettings)
     vagas_com_br: SourceSettings = field(default_factory=SourceSettings)
+    programathor: SourceSettings = field(default_factory=SourceSettings)
     posts: PostsConfig = field(default_factory=PostsConfig)
 
     def get(self, name: str) -> SourceSettings:

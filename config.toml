@@ -95,3 +95,11 @@ location = ""
 time_range = "r3d"
 remote = ""
 max_pages = 2
+
+[sources.programathor]
+enabled = true
+queries = ["desenvolvedor", "react", "node"]
+location = ""
+time_range = ""
+remote = ""
+max_pages = 2
