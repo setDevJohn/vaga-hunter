@@ -273,7 +273,29 @@ select, input[type="text"], input[type="number"], input[type="search"], textarea
 dialog {
   border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-3);
   background: var(--surface); color: var(--text); padding: var(--sp-5);
-  width: min(560px, calc(100vw - 32px));
+  width: min(780px, calc(100vw - 32px));
+}
+.settings { display: flex; gap: var(--sp-4); min-height: 380px; }
+.settings-nav { display: flex; flex-direction: column; gap: var(--sp-1);
+                flex: none; width: 160px; border-right: 1px solid var(--border);
+                padding-right: var(--sp-3); }
+.nav-item { text-align: left; padding: 8px 12px; border: none; border-radius: var(--r-sm);
+            background: none; color: var(--text-2); font: inherit; font-size: var(--fs-sm);
+            cursor: pointer; }
+.nav-item:hover { background: var(--surface-2); }
+.nav-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.nav-item .off { opacity: .55; font-size: var(--fs-xs); }
+.settings-body { flex: 1; min-width: 0; max-height: 60vh; overflow-y: auto; }
+.settings-page { display: none; }
+.settings-page.active { display: block; }
+.source-toggle { display: flex; align-items: center; gap: var(--sp-2);
+                 margin-bottom: var(--sp-3); font-weight: 600; }
+.source-toggle input { width: auto; accent-color: var(--accent); transform: scale(1.2); }
+@media (max-width: 640px) {
+  .settings { flex-direction: column; min-height: 0; }
+  .settings-nav { flex-direction: row; flex-wrap: wrap; width: auto;
+                  border-right: none; border-bottom: 1px solid var(--border);
+                  padding: 0 0 var(--sp-2); }
 }
 dialog::backdrop { background: rgb(0 0 0 / .45); }
 dialog h2 { margin: 0 0 var(--sp-4); font-size: var(--fs-lg); }

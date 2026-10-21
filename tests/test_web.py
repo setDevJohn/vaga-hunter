@@ -12,7 +12,7 @@ from vaga_hunter.web.app import create_app
 @pytest.fixture
 def client(tmp_path):
     config = Config()
-    config.sources.linkedin_jobs = False  # sem fontes reais (sem rede nos testes)
+    config.sources.linkedin_jobs.enabled = False  # sem fontes reais (sem rede nos testes)
     config.notify.telegram = False
     config.notify.desktop = False
     storage = Storage(tmp_path / "w.db")
@@ -166,15 +166,26 @@ def test_cancel_without_running_search(client):
     assert resp.status_code == 409
 
 
-def test_config_includes_posts_queries(client):
+def test_config_per_source(client):
     test_client, _ = client
     cfg = test_client.get("/api/config").get_json()
-    assert "posts_queries" in cfg and "posts_enabled" in cfg
+    assert set(cfg["sources"]) == {"linkedin_jobs", "linkedin_posts", "infojobs"}
     resp = test_client.post("/api/config", json={
-        "queries": ["x"], "posts_queries": ["vaga react", " "]})
+        "queries": ["x"],
+        "sources": {"linkedin_posts": {
+            "enabled": True, "queries": ["vaga react", " "],
+            "time_range": "r24h", "remote": "any", "max_pages": 2}},
+    })
     assert resp.status_code == 200
     cfg2 = test_client.get("/api/config").get_json()
-    assert cfg2["posts_queries"] == ["vaga react"]
+    posts = cfg2["sources"]["linkedin_posts"]
+    assert posts["enabled"] is True
+    assert posts["queries"] == ["vaga react"]
+    assert posts["time_range"] == "r24h" and posts["remote"] == "any"
+    # valores inválidos rejeitados
+    bad = test_client.post("/api/config", json={
+        "queries": ["x"], "sources": {"infojobs": {"time_range": "errado"}}})
+    assert bad.status_code == 400
 
 
 def test_search_jobs_never_includes_posts(client, monkeypatch):
@@ -210,3 +221,26 @@ def test_search_posts_rejected_when_disabled(client):
     assert resp.status_code == 400
     resp2 = test_client.post("/api/search", json={"what": "xyz"})
     assert resp2.status_code == 400
+
+
+def test_config_partial_update_preserves_values(client):
+    test_client, _ = client
+    test_client.post("/api/config", json={
+        "queries": ["x"], "remote": "hybrid",
+        "sources": {"infojobs": {"enabled": True, "queries": ["programador"],
+                                 "time_range": "r24h"}}})
+    # POST parcial: sem 'remote' e com source só trocando enabled
+    test_client.post("/api/config", json={
+        "queries": ["x"], "sources": {"infojobs": {"enabled": False}}})
+    cfg = test_client.get("/api/config").get_json()
+    assert cfg["remote"] == "hybrid"  # não resetou
+    ij = cfg["sources"]["infojobs"]
+    assert ij["enabled"] is False
+    assert ij["queries"] == ["programador"]  # preservado
+    assert ij["time_range"] == "r24h"
+
+
+def test_config_rejects_zero_time_range(client):
+    test_client, _ = client
+    resp = test_client.post("/api/config", json={"queries": ["x"], "time_range": "r0h"})
+    assert resp.status_code == 400

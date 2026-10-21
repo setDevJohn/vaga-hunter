@@ -22,33 +22,58 @@ ProgressFn = Callable[[str], None]
 _RUN_LOCK = threading.Lock()
 
 
+def _polite_session(config: Config) -> PoliteSession:
+    return PoliteSession(
+        min_delay=config.http.min_delay,
+        max_delay=config.http.max_delay,
+        max_retries=config.http.max_retries,
+        breaker_threshold=config.http.circuit_breaker_threshold,
+    )
+
+
 def build_sources(config: Config, storage: Storage) -> list[JobSource]:
     sources: list[JobSource] = []
-    if config.sources.linkedin_jobs:
-        session = PoliteSession(
-            min_delay=config.http.min_delay,
-            max_delay=config.http.max_delay,
-            max_retries=config.http.max_retries,
-            breaker_threshold=config.http.circuit_breaker_threshold,
-        )
-        sources.append(LinkedInJobsSource(session, skip_detail=storage.exists))
-    if config.sources.linkedin_posts and config.sources.posts.mode == "browser":
+    if config.sources.linkedin_jobs.enabled:
+        sources.append(LinkedInJobsSource(_polite_session(config),
+                                          skip_detail=storage.exists))
+    if config.sources.infojobs.enabled:
+        from .sources.infojobs import InfoJobsSource
+        # sessão própria: delays/circuit breaker independentes por site
+        sources.append(InfoJobsSource(_polite_session(config),
+                                      skip_detail=storage.exists))
+    if config.sources.linkedin_posts.enabled and config.sources.posts.mode == "browser":
         from .sources.linkedin_posts import LinkedInPostsSource
         sources.append(LinkedInPostsSource(config.sources.posts))
     return sources
 
 
 def build_filters(config: Config, source: JobSource | None = None) -> list[SearchFilters]:
-    queries = config.search.queries
-    if source is not None and source.name == "linkedin_posts" and config.sources.posts.queries:
-        queries = config.sources.posts.queries  # queries próprias da busca em posts
+    """Filtros efetivos: override da fonte quando definido, senão [search]."""
+    search = config.search
+    queries = search.queries
+    location = search.location
+    time_range = search.time_range
+    remote = search.remote or None
+    max_pages = search.max_pages_per_query
+    if source is not None:
+        try:
+            override = config.sources.get(source.name)
+        except AttributeError:
+            override = None  # fonte sem bloco de config (ex.: fakes de teste)
+        if override is not None:
+            queries = override.queries or queries
+            location = override.location or location
+            time_range = override.time_range or time_range
+            if override.remote:
+                remote = None if override.remote == "any" else override.remote
+            max_pages = override.max_pages or max_pages
     return [
         SearchFilters(
             keywords=query,
-            location=config.search.location,
-            time_range=config.search.time_range,
-            remote=config.search.remote or None,
-            max_pages=config.search.max_pages_per_query,
+            location=location,
+            time_range=time_range,
+            remote=remote,
+            max_pages=max_pages,
         )
         for query in queries
     ]

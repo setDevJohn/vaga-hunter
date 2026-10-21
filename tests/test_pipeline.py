@@ -104,7 +104,7 @@ def test_blocked_source_sets_cooldown_and_skips_next_run(env):
 def test_posts_source_uses_own_queries(env):
     config, storage, scorer = env
     config.search.queries = ["query de vagas"]
-    config.sources.posts.queries = ["query de posts"]
+    config.sources.linkedin_posts.queries = ["query de posts"]
 
     class NamedSource(FakeSource):
         def __init__(self, name):
@@ -135,3 +135,26 @@ def test_cancel_stops_search(env):
     report = run_search(config, storage, [FakeSource(jobs)], scorer, [],
                         should_stop=should_stop)
     assert report.found < 10
+
+
+def test_time_range_override_per_source(env):
+    config, storage, scorer = env
+    config.search.queries = ["dev"]
+    config.search.time_range = "r2h"
+    config.sources.infojobs.time_range = "r24h"
+
+    class NamedSource(FakeSource):
+        def __init__(self, name):
+            super().__init__([])
+            self.name = name
+            self.ranges = []
+
+        def search(self, filters):
+            self.ranges.append(filters.time_range)
+            return iter([])
+
+    li = NamedSource("linkedin_jobs")
+    ij = NamedSource("infojobs")
+    run_search(config, storage, [li, ij], scorer, [])
+    assert li.ranges == ["r2h"]
+    assert ij.ranges == ["r24h"]

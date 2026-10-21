@@ -131,7 +131,7 @@ function jobCard(job) {
   const status = job.status;
   const isNew = status === "new";
   const badges = [];
-  const SOURCE_PT = { linkedin_jobs: "LinkedIn", linkedin_posts: "LinkedIn · post" };
+  const SOURCE_PT = { linkedin_jobs: "LinkedIn", linkedin_posts: "LinkedIn · post", infojobs: "InfoJobs" };
   badges.push(`<span class="badge outline source">${esc(SOURCE_PT[job.source] || job.source)}</span>`);
   const MODALITY_PT = { remote: "🏠 remoto", hybrid: "🔄 híbrido", onsite: "🏢 presencial" };
   if (job.modality) badges.push(`<span class="badge outline modality-${esc(job.modality)}">${MODALITY_PT[job.modality]}</span>`);
@@ -351,20 +351,103 @@ async function refreshStatus(force = false) {
 
 /* ---------- config dialog ---------- */
 
+const TIME_OPTIONS = [
+  ["r30m", "últimos 30 min"], ["r1h", "última 1 hora"], ["r2h", "últimas 2 horas"],
+  ["r6h", "últimas 6 horas"], ["r12h", "últimas 12 horas"], ["r24h", "últimas 24h"],
+  ["r3d", "últimos 3 dias"], ["r7d", "últimos 7 dias"], ["r1m", "último mês"],
+];
+const SOURCE_PAGES = {
+  linkedin_jobs: "LinkedIn Jobs",
+  linkedin_posts: "LinkedIn Posts",
+  infojobs: "InfoJobs",
+};
+
+function fillTimeSelect(select, value, inheritLabel = null) {
+  select.innerHTML = "";
+  if (inheritLabel !== null) select.add(new Option(inheritLabel, ""));
+  for (const [v, label] of TIME_OPTIONS) select.add(new Option(label, v));
+  if (value && ![...select.options].some((o) => o.value === value)) {
+    select.add(new Option(value, value));  // valor custom do config.toml
+  }
+  select.value = value || (inheritLabel !== null ? "" : "r24h");
+}
+
+function buildSourcePage(name, src) {
+  const section = document.createElement("section");
+  section.className = "settings-page";
+  section.dataset.page = name;
+  section.innerHTML = `
+    <label class="source-toggle">
+      <input type="checkbox" data-field="enabled" ${src.enabled ? "checked" : ""}>
+      Fonte ativa
+    </label>
+    <div class="params-grid">
+      <label class="full">Buscas desta fonte (vazio = usa as buscas padrão)
+        <textarea data-field="queries" rows="4" spellcheck="false"></textarea>
+      </label>
+      <label>Localização <input type="text" data-field="location"
+        placeholder="padrão" value="${esc(src.location)}"></label>
+      <label>Período <select data-field="time_range" class="time-range-select"></select></label>
+      <label>Modalidade
+        <select data-field="remote">
+          <option value="">padrão</option>
+          <option value="any">qualquer</option>
+          <option value="remote">remoto</option>
+          <option value="hybrid">híbrido</option>
+          <option value="onsite">presencial</option>
+        </select>
+      </label>
+      <label>Páginas por busca <input type="number" data-field="max_pages"
+        min="0" max="10" placeholder="padrão" value="${src.max_pages || ""}"></label>
+    </div>
+    ${name === "linkedin_posts"
+      ? '<p class="muted">⚠️ Busca em posts usa o Chrome do bot com a sua sessão do LinkedIn. Roda só pelo botão "Buscar posts", nunca pelo daemon.</p>'
+      : ""}`;
+  section.querySelector('[data-field="queries"]').value = (src.queries || []).join("\n");
+  fillTimeSelect(section.querySelector('[data-field="time_range"]'), src.time_range, "padrão");
+  section.querySelector('[data-field="remote"]').value = src.remote || "";
+  return section;
+}
+
+function readSourcePage(name) {
+  const page = document.querySelector(`.settings-page[data-page="${name}"]`);
+  if (!page) return null;
+  const get = (field) => page.querySelector(`[data-field="${field}"]`);
+  return {
+    enabled: get("enabled").checked,
+    queries: get("queries").value.split("\n"),
+    location: get("location").value,
+    time_range: get("time_range").value,
+    remote: get("remote").value,
+    max_pages: parseInt(get("max_pages").value, 10) || 0,
+  };
+}
+
+function updateNavBadges() {
+  for (const item of $$(".nav-item")) {
+    const name = item.dataset.page;
+    if (name === "geral") continue;
+    const src = readSourcePage(name);
+    item.innerHTML = `${SOURCE_PAGES[name]}${src && src.enabled ? "" : ' <span class="off">off</span>'}`;
+  }
+}
+
 async function loadConfig() {
   const cfg = await api("/api/config");
   $("#cfg-queries").value = cfg.queries.join("\n");
   $("#cfg-location").value = cfg.location;
-  $("#cfg-posts-queries").value = (cfg.posts_queries || []).join("\n");
-  $("#cfg-posts-wrap").classList.toggle("hidden", !cfg.posts_enabled);
-  const timeSel = $("#cfg-time-range");
-  if (![...timeSel.options].some((o) => o.value === cfg.time_range)) {
-    timeSel.add(new Option(cfg.time_range, cfg.time_range));  // valor custom do config.toml
-  }
-  timeSel.value = cfg.time_range;
+  fillTimeSelect($("#cfg-time-range"), cfg.time_range);
   $("#cfg-remote").value = cfg.remote;
   $("#cfg-max-pages").value = cfg.max_pages_per_query;
   $("#cfg-threshold").value = cfg.threshold;
+
+  const body = $(".settings-body");
+  for (const old of body.querySelectorAll('.settings-page:not([data-page="geral"])')) old.remove();
+  for (const name of Object.keys(SOURCE_PAGES)) {
+    body.appendChild(buildSourcePage(name, cfg.sources[name] || {}));
+  }
+  body.addEventListener("change", updateNavBadges);
+  updateNavBadges();
 }
 
 /* ---------- wiring ---------- */
@@ -495,22 +578,39 @@ $("#log-close").addEventListener("click", () => $("#log-card").classList.add("hi
 
 $("#btn-settings").addEventListener("click", () => $("#params-dialog").showModal());
 $("#btn-close-config").addEventListener("click", () => $("#params-dialog").close());
+for (const item of $$(".nav-item")) {
+  item.addEventListener("click", () => {
+    $$(".nav-item").forEach((n) => { n.classList.remove("active"); n.setAttribute("aria-selected", "false"); });
+    item.classList.add("active");
+    item.setAttribute("aria-selected", "true");
+    $$(".settings-page").forEach((p) =>
+      p.classList.toggle("active", p.dataset.page === item.dataset.page));
+  });
+}
+document.querySelector('.settings-page[data-page="geral"]').classList.add("active");
+
 $("#btn-save-config").addEventListener("click", async () => {
+  const sources = {};
+  for (const name of Object.keys(SOURCE_PAGES)) {
+    const src = readSourcePage(name);
+    if (src) sources[name] = src;
+  }
   const result = await api("/api/config", {
     method: "POST",
     body: JSON.stringify({
       queries: $("#cfg-queries").value.split("\n"),
-      posts_queries: $("#cfg-posts-queries").value.split("\n"),
       location: $("#cfg-location").value,
       time_range: $("#cfg-time-range").value,
       remote: $("#cfg-remote").value,
       max_pages_per_query: $("#cfg-max-pages").value,
       threshold: $("#cfg-threshold").value,
+      sources,
     }),
   });
   if (result.ok) {
     $("#params-dialog").close();
-    toast(result.saved_to_file ? "Parâmetros salvos no config.toml" : "Parâmetros aplicados", "ok");
+    toast(result.saved_to_file ? "Configurações salvas no config.toml" : "Configurações aplicadas", "ok");
+    refreshStatus(true);  // botão de posts pode ter mudado de visibilidade
   }
 });
 

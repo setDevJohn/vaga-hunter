@@ -2,7 +2,7 @@
 
 Bot em Python que busca, filtra e **ranqueia** vagas de emprego recentes de acordo com o seu perfil, com deduplicação entre execuções e notificações via Telegram e desktop.
 
-Fonte inicial: **LinkedIn** (busca pública de vagas, sem login — zero risco para a sua conta). Arquitetura pluggável para adicionar Catho, Indeed, InfoJobs etc.
+Fontes: **LinkedIn** e **InfoJobs** (buscas públicas, sem login — zero risco para contas). Arquitetura pluggável para adicionar Catho, Indeed etc.
 
 ## Instalação
 
