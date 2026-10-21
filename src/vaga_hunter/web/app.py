@@ -114,7 +114,7 @@ def create_app(config: Config, storage: Storage | None = None,
         what = (request.get_json(silent=True) or {}).get("what", "jobs")
         if what not in ("jobs", "posts"):
             return jsonify({"ok": False, "error": "what inválido"}), 400
-        if what == "posts" and not config.sources.linkedin_posts:
+        if what == "posts" and not config.sources.linkedin_posts.enabled:
             return jsonify({"ok": False, "error": "fonte de posts desligada no config"}), 400
         with state.lock:
             if state.running:
@@ -143,7 +143,8 @@ def create_app(config: Config, storage: Storage | None = None,
             return False
 
     def _posts_status() -> dict:
-        enabled = config.sources.linkedin_posts and config.sources.posts.mode == "browser"
+        enabled = config.sources.linkedin_posts.enabled and \
+            config.sources.posts.mode == "browser"
         if not enabled:
             return {"enabled": False, "state": "disabled"}
         return {"enabled": True, "state": "ready" if _cdp_ok() else "chrome_closed"}
@@ -228,6 +229,7 @@ def create_app(config: Config, storage: Storage | None = None,
 
     @app.get("/api/config")
     def api_config_get():
+        from ..config import SOURCE_NAMES
         return jsonify({
             "queries": config.search.queries,
             "location": config.search.location,
@@ -235,10 +237,16 @@ def create_app(config: Config, storage: Storage | None = None,
             "remote": config.search.remote or "",
             "max_pages_per_query": config.search.max_pages_per_query,
             "threshold": config.scoring.threshold,
-            "posts_enabled": config.sources.linkedin_posts,
-            "posts_queries": config.sources.posts.queries,
-            "infojobs_enabled": config.sources.infojobs,
-            "time_ranges": config.sources.time_ranges,
+            "sources": {
+                name: {
+                    "enabled": config.sources.get(name).enabled,
+                    "queries": config.sources.get(name).queries,
+                    "location": config.sources.get(name).location,
+                    "time_range": config.sources.get(name).time_range,
+                    "remote": config.sources.get(name).remote,
+                    "max_pages": config.sources.get(name).max_pages,
+                } for name in SOURCE_NAMES
+            },
         })
 
     @app.post("/api/config")
@@ -258,10 +266,33 @@ def create_app(config: Config, storage: Storage | None = None,
         time_range = data.get("time_range", config.search.time_range)
         if not _valid_range(time_range):
             errors.append("time_range inválido (use r30m, r1h, r2h, r24h, r3d...)")
-        time_ranges = data.get("time_ranges", config.sources.time_ranges) or {}
-        time_ranges = {k: v for k, v in time_ranges.items() if v}
-        if any(not _valid_range(v) for v in time_ranges.values()):
-            errors.append("período por fonte inválido")
+
+        from ..config import SOURCE_NAMES
+        sources_in = data.get("sources", {}) or {}
+        parsed_sources = {}
+        for name in SOURCE_NAMES:
+            src = sources_in.get(name)
+            if not isinstance(src, dict):
+                continue
+            tr = str(src.get("time_range", "") or "")
+            if tr and not _valid_range(tr):
+                errors.append(f"período inválido em {name}")
+            rm = str(src.get("remote", "") or "")
+            if rm not in {"", "any", "remote", "hybrid", "onsite"}:
+                errors.append(f"modalidade inválida em {name}")
+            try:
+                mp = int(src.get("max_pages", 0) or 0)
+            except (TypeError, ValueError):
+                mp = 0
+                errors.append(f"max_pages inválido em {name}")
+            parsed_sources[name] = {
+                "enabled": bool(src.get("enabled", False)),
+                "queries": [q.strip() for q in src.get("queries", []) if str(q).strip()],
+                "location": str(src.get("location", "") or "").strip(),
+                "time_range": tr,
+                "remote": rm,
+                "max_pages": max(0, min(10, mp)),
+            }
         remote = data.get("remote", "")
         if remote not in {"", "remote", "hybrid", "onsite"}:
             errors.append("remote inválido")
@@ -278,13 +309,13 @@ def create_app(config: Config, storage: Storage | None = None,
         config.search.queries = queries
         config.search.location = str(data.get("location", config.search.location)).strip() or "Brasil"
         config.search.time_range = time_range
-        config.sources.time_ranges = time_ranges
+        for name, values in parsed_sources.items():
+            settings = config.sources.get(name)
+            for key, value in values.items():
+                setattr(settings, key, value)
         config.search.remote = remote or None
         config.search.max_pages_per_query = max_pages
         config.scoring.threshold = threshold
-        if "posts_queries" in data:
-            config.sources.posts.queries = [
-                q.strip() for q in data.get("posts_queries", []) if str(q).strip()]
         saved = save_search_params(config)  # vale na hora; persiste se há config.toml
         return jsonify({"ok": True, "saved_to_file": saved})
 

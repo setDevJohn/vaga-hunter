@@ -38,19 +38,34 @@ class PostsConfig:
     mode: str = "disabled"            # disabled | browser
     cdp_url: str = "http://127.0.0.1:9222"
     max_requests_per_run: int = 8
-    # Queries próprias da busca em posts; vazio = usa as queries de [search]
+    # legado: queries antigas de [sources.posts]; hoje vivem no override da fonte
     queries: list[str] = field(default_factory=list)
 
 
 @dataclass
+class SourceSettings:
+    """Configuração por fonte. Campo vazio/zerado herda o padrão de [search]."""
+    enabled: bool = False
+    queries: list[str] = field(default_factory=list)   # [] = usa as de [search]
+    location: str = ""                                 # "" = padrão
+    time_range: str = ""                               # "" = padrão
+    remote: str = ""                                   # "" = padrão | any|remote|hybrid|onsite
+    max_pages: int = 0                                 # 0 = padrão
+
+
+SOURCE_NAMES = ("linkedin_jobs", "linkedin_posts", "infojobs")
+
+
+@dataclass
 class SourcesConfig:
-    linkedin_jobs: bool = True
-    linkedin_posts: bool = False
-    infojobs: bool = False
+    linkedin_jobs: SourceSettings = field(
+        default_factory=lambda: SourceSettings(enabled=True))
+    linkedin_posts: SourceSettings = field(default_factory=SourceSettings)
+    infojobs: SourceSettings = field(default_factory=SourceSettings)
     posts: PostsConfig = field(default_factory=PostsConfig)
-    # Período por fonte; fonte ausente usa o [search].time_range padrão.
-    # Ex.: [sources.time_range]  infojobs = "r24h"
-    time_ranges: dict[str, str] = field(default_factory=dict)
+
+    def get(self, name: str) -> SourceSettings:
+        return getattr(self, name)
 
 
 @dataclass
@@ -112,13 +127,23 @@ def load_config(path: str | Path | None = None) -> Config:
             cfg.scoring.threshold = float(scoring["threshold"])
         cfg.scoring.weights.update(scoring.get("weights", {}))
         sources = raw.get("sources", {})
-        cfg.sources.linkedin_jobs = bool(sources.get("linkedin_jobs", True))
-        cfg.sources.linkedin_posts = bool(sources.get("linkedin_posts", False))
-        cfg.sources.infojobs = bool(sources.get("infojobs", False))
-        overrides = sources.get("time_range", {})
-        if isinstance(overrides, dict):
-            cfg.sources.time_ranges = {str(k): str(v) for k, v in overrides.items() if v}
+        for name in SOURCE_NAMES:
+            value = sources.get(name)
+            settings = cfg.sources.get(name)
+            if isinstance(value, bool):        # formato legado: linkedin_jobs = true
+                settings.enabled = value
+            elif isinstance(value, dict):      # formato novo: [sources.linkedin_jobs]
+                settings.enabled = bool(value.get("enabled", True))
+                _apply(settings, {k: v for k, v in value.items() if k != "enabled"})
+        # legados: [sources.time_range] e queries de [sources.posts]
+        legacy_ranges = sources.get("time_range", {})
+        if isinstance(legacy_ranges, dict):
+            for name, value in legacy_ranges.items():
+                if name in SOURCE_NAMES and value and not cfg.sources.get(name).time_range:
+                    cfg.sources.get(name).time_range = str(value)
         _apply(cfg.sources.posts, sources.get("posts", {}))
+        if cfg.sources.posts.queries and not cfg.sources.linkedin_posts.queries:
+            cfg.sources.linkedin_posts.queries = list(cfg.sources.posts.queries)
         _apply(cfg.http, raw.get("http", {}))
         _apply(cfg.daemon, raw.get("daemon", {}))
         _apply(cfg.notify, raw.get("notify", {}))
@@ -146,14 +171,23 @@ def save_search_params(cfg: Config) -> bool:
     scoring = doc.setdefault("scoring", tomlkit.table())
     scoring["threshold"] = cfg.scoring.threshold
     sources = doc.setdefault("sources", tomlkit.table())
-    posts = sources.setdefault("posts", tomlkit.table())
-    posts["queries"] = cfg.sources.posts.queries
-    if cfg.sources.time_ranges:
-        ranges = sources.setdefault("time_range", tomlkit.table())
-        for key, value in cfg.sources.time_ranges.items():
-            ranges[key] = value
-    elif "time_range" in sources:
-        del sources["time_range"]
+    for name in SOURCE_NAMES:
+        settings = cfg.sources.get(name)
+        if not isinstance(sources.get(name), dict):
+            if name in sources:
+                del sources[name]          # formato legado bool -> vira tabela
+            sources[name] = tomlkit.table()
+        table = sources[name]
+        table["enabled"] = settings.enabled
+        table["queries"] = settings.queries
+        table["location"] = settings.location
+        table["time_range"] = settings.time_range
+        table["remote"] = settings.remote
+        table["max_pages"] = settings.max_pages
+    for legacy in ("time_range",):
+        if legacy in sources and not isinstance(sources[legacy], bool):
+            if legacy == "time_range" and isinstance(sources[legacy], dict):
+                del sources[legacy]
     cfg.config_path.write_text(tomlkit.dumps(doc))
     return True
 

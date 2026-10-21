@@ -83,52 +83,43 @@
 </div>
 
 <dialog id="params-dialog" aria-labelledby="params-title">
-  <h2 id="params-title">⚙️ Parâmetros de busca</h2>
-  <div class="params-grid">
-    <label class="full">Buscas (uma por linha)
-      <textarea id="cfg-queries" rows="5" spellcheck="false"></textarea>
-    </label>
-    <label class="full" id="cfg-posts-wrap">Buscas em POSTS (uma por linha; vazio = usa as de cima)
-      <textarea id="cfg-posts-queries" rows="3" spellcheck="false"></textarea>
-    </label>
-    <label>Localização <input type="text" id="cfg-location"></label>
-    <label>Período (LinkedIn / padrão)
-      <select id="cfg-time-range">
-        <option value="r30m">últimos 30 min</option>
-        <option value="r1h">última 1 hora</option>
-        <option value="r2h">últimas 2 horas</option>
-        <option value="r6h">últimas 6 horas</option>
-        <option value="r12h">últimas 12 horas</option>
-        <option value="r24h">últimas 24h</option>
-        <option value="r3d">últimos 3 dias</option>
-        <option value="r7d">últimos 7 dias</option>
-        <option value="r1m">último mês</option>
-      </select>
-    </label>
-    <label id="cfg-ij-range-wrap">Período InfoJobs
-      <select id="cfg-ij-range">
-        <option value="">igual ao padrão</option>
-        <option value="r6h">últimas 6 horas</option>
-        <option value="r12h">últimas 12 horas</option>
-        <option value="r24h">últimas 24h</option>
-        <option value="r3d">últimos 3 dias</option>
-        <option value="r7d">últimos 7 dias</option>
-      </select>
-    </label>
-    <label>Modalidade
-      <select id="cfg-remote">
-        <option value="">qualquer</option>
-        <option value="remote">remoto</option>
-        <option value="hybrid">híbrido</option>
-        <option value="onsite">presencial</option>
-      </select>
-    </label>
-    <label>Páginas por busca <input type="number" id="cfg-max-pages" min="1" max="10"></label>
-    <label>Score p/ notificar <input type="number" id="cfg-threshold" min="0" max="100" step="5"></label>
-    <div class="params-actions">
-      <button id="btn-save-config" class="btn primary">Salvar</button>
-      <button id="btn-close-config" class="btn">Cancelar</button>
+  <h2 id="params-title">⚙️ Configurações</h2>
+  <div class="settings">
+    <nav class="settings-nav" role="tablist" aria-label="Páginas de configuração">
+      <button class="nav-item active" data-page="geral" role="tab" aria-selected="true">Geral</button>
+      <button class="nav-item" data-page="linkedin_jobs" role="tab" aria-selected="false">LinkedIn Jobs</button>
+      <button class="nav-item" data-page="linkedin_posts" role="tab" aria-selected="false">LinkedIn Posts</button>
+      <button class="nav-item" data-page="infojobs" role="tab" aria-selected="false">InfoJobs</button>
+    </nav>
+    <div class="settings-body">
+      <section class="settings-page" data-page="geral">
+        <div class="params-grid">
+          <label class="full">Buscas padrão (uma por linha)
+            <textarea id="cfg-queries" rows="5" spellcheck="false"></textarea>
+          </label>
+          <label>Localização padrão <input type="text" id="cfg-location"></label>
+          <label>Período padrão
+            <select id="cfg-time-range" class="time-range-select"></select>
+          </label>
+          <label>Modalidade padrão
+            <select id="cfg-remote">
+              <option value="">qualquer</option>
+              <option value="remote">remoto</option>
+              <option value="hybrid">híbrido</option>
+              <option value="onsite">presencial</option>
+            </select>
+          </label>
+          <label>Páginas por busca <input type="number" id="cfg-max-pages" min="1" max="10"></label>
+          <label>Score p/ notificar <input type="number" id="cfg-threshold" min="0" max="100" step="5"></label>
+        </div>
+        <p class="muted">Cada fonte pode sobrescrever esses valores na sua própria página.</p>
+      </section>
+      <!-- páginas das fontes geradas pelo JS -->
     </div>
+  </div>
+  <div class="params-actions">
+    <button id="btn-save-config" class="btn primary">Salvar</button>
+    <button id="btn-close-config" class="btn">Cancelar</button>
   </div>
 </dialog>
 

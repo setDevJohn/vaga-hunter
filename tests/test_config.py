@@ -32,11 +32,15 @@ def test_time_ranges_roundtrip(tmp_path):
     toml = tmp_path / "config.toml"
     toml.write_text('[search]\nqueries = ["a"]\n\n[scoring]\nthreshold = 70\n')
     cfg = load_config(toml)
-    cfg.sources.time_ranges = {"infojobs": "r24h"}
+    cfg.sources.infojobs.enabled = True
+    cfg.sources.infojobs.time_range = "r24h"
+    cfg.sources.infojobs.queries = ["dev curitiba"]
     assert save_search_params(cfg) is True
     cfg2 = load_config(toml)
-    assert cfg2.sources.time_ranges == {"infojobs": "r24h"}
+    assert cfg2.sources.infojobs.enabled is True
+    assert cfg2.sources.infojobs.time_range == "r24h"
+    assert cfg2.sources.infojobs.queries == ["dev curitiba"]
     # limpar override também persiste
-    cfg2.sources.time_ranges = {}
+    cfg2.sources.infojobs.time_range = ""
     save_search_params(cfg2)
-    assert load_config(toml).sources.time_ranges == {}
+    assert load_config(toml).sources.infojobs.time_range == ""

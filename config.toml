@@ -28,12 +28,6 @@ remote = 15
 recency = 15
 
 [sources]
-linkedin_jobs = true
-infojobs = true           # busca pública no InfoJobs Brasil (sem login)
-linkedin_posts = true     # requer sessão logada — risco baixo mas NÃO zero. Veja README.
-
-[sources.time_range]
-infojobs = "r24h"   # LinkedIn usa o time_range padrão de [search]
 
 [sources.posts]
 mode = "browser"          # disabled | browser (Chrome real via CDP)
@@ -42,6 +36,29 @@ max_requests_per_run = 8
 # Queries próprias da busca em posts; comente para usar as de [search]
 queries = ["(dev OR desenvolvedor AND Fullstack OR Frontend)"]
 
+[sources.linkedin_jobs]
+enabled = true
+queries = []
+location = ""
+time_range = ""
+remote = ""
+max_pages = 0
+
+[sources.linkedin_posts]
+enabled = true
+queries = ["(dev OR desenvolvedor AND Fullstack OR Frontend)"]
+location = ""
+time_range = ""
+remote = ""
+max_pages = 0
+
+[sources.infojobs]
+enabled = true
+queries = []
+location = ""
+time_range = "r24h"
+remote = ""
+max_pages = 0
 [http]
 min_delay = 2.0
 max_delay = 6.0
