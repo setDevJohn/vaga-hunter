@@ -4,7 +4,7 @@
 # Cada query vira uma busca separada no LinkedIn
 queries = ["desenvolvedor fullstack", "frontend developer", "backend developer", "react native", "devops junior"]
 location = "Brasil"
-time_range = "r24h"        # r24h | r3d | r7d | r1m
+time_range = "r2h"        # r24h | r3d | r7d | r1m
 remote = ""          # remote | hybrid | onsite | "" (qualquer)
 max_pages_per_query = 5    # 25 vagas/página — mantenha baixo
 

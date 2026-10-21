@@ -181,6 +181,7 @@ function detailsPanel(job) {
 
 async function loadJobs() {
   const params = new URLSearchParams();
+  params.set("limit", "1000");  // default do servidor é 200 — banco cresce
   if (state.filterStatus) params.set("status", state.filterStatus);
   if (state.minScore) params.set("min_score", state.minScore);
 
@@ -291,10 +292,11 @@ function renderStatus(data) {
 
   // chips com contagem
   const total = Object.values(counts || {}).reduce((a, b) => a + b, 0);
-  for (const chip of $$(".chip")) {
+  for (const chip of $$(".chips .chip")) {  // só os chips de status (sort usa a mesma classe)
     const key = chip.dataset.status;
     const value = key === "" ? total : (counts?.[key] || 0);
-    chip.querySelector(".count").textContent = value ? `${value}` : "";
+    const count = chip.querySelector(".count");
+    if (count) count.textContent = value ? `${value}` : "";
   }
 
   // busca manual
@@ -411,9 +413,9 @@ $("#jobs").addEventListener("click", (event) => {
   }
 });
 
-for (const chip of $$(".chip")) {
+for (const chip of $$(".chips .chip")) {
   chip.addEventListener("click", () => {
-    $$(".chip").forEach((c) => { c.classList.remove("active"); c.setAttribute("aria-pressed", "false"); });
+    $$(".chips .chip").forEach((c) => { c.classList.remove("active"); c.setAttribute("aria-pressed", "false"); });
     chip.classList.add("active");
     chip.setAttribute("aria-pressed", "true");
     state.filterStatus = chip.dataset.status;
@@ -461,7 +463,7 @@ $("#empty-action").addEventListener("click", () => {
     state.filterStatus = ""; state.minScore = ""; state.textFilter = "";
     $("#filter-score").value = "";
     $("#filter-text").value = "";
-    $$(".chip").forEach((c) => c.classList.toggle("active", c.dataset.status === ""));
+    $$(".chips .chip").forEach((c) => c.classList.toggle("active", c.dataset.status === ""));
     loadJobs();
   } else {
     $("#btn-search").click();
