@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vaga-hunter</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <h1>🎯 vaga-hunter</h1>
+  <div class="controls">
+    <button id="btn-search" class="primary">Buscar agora</button>
+    <button id="btn-daemon" class="toggle">Daemon: …</button>
+    <span id="daemon-info" class="muted"></span>
+  </div>
+</header>
+
+<section id="log-panel" class="hidden">
+  <pre id="log"></pre>
+</section>
+
+<section class="filters">
+  <label>Status
+    <select id="filter-status">
+      <option value="">todos</option>
+      <option value="new">novas</option>
+      <option value="notified">notificadas</option>
+      <option value="interested">interessado</option>
+      <option value="discarded">descartadas</option>
+      <option value="seen">vistas</option>
+    </select>
+  </label>
+  <label>Score mínimo <input type="number" id="filter-score" min="0" max="100" step="5" placeholder="0"></label>
+</section>
+
+<table id="jobs">
+  <thead>
+    <tr><th>Score</th><th>Vaga</th><th>Empresa</th><th>Local</th><th>Publicada</th><th>Status</th><th>Ações</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
