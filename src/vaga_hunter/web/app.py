@@ -261,7 +261,7 @@ def create_app(config: Config, storage: Storage | None = None,
 
         def _valid_range(value: str) -> bool:
             return value in {"r24h", "r3d", "r7d", "r1m"} or \
-                bool(_re.match(r"^r\d+(m|h|d)$", value))
+                bool(_re.match(r"^r[1-9]\d*(m|h|d)$", value))
 
         time_range = data.get("time_range", config.search.time_range)
         if not _valid_range(time_range):
@@ -274,26 +274,28 @@ def create_app(config: Config, storage: Storage | None = None,
             src = sources_in.get(name)
             if not isinstance(src, dict):
                 continue
-            tr = str(src.get("time_range", "") or "")
+            current = config.sources.get(name)  # update parcial: ausente mantém o atual
+            tr = str(src.get("time_range", current.time_range) or "")
             if tr and not _valid_range(tr):
                 errors.append(f"período inválido em {name}")
-            rm = str(src.get("remote", "") or "")
+            rm = str(src.get("remote", current.remote) or "")
             if rm not in {"", "any", "remote", "hybrid", "onsite"}:
                 errors.append(f"modalidade inválida em {name}")
             try:
-                mp = int(src.get("max_pages", 0) or 0)
+                mp = int(src.get("max_pages", current.max_pages) or 0)
             except (TypeError, ValueError):
                 mp = 0
                 errors.append(f"max_pages inválido em {name}")
             parsed_sources[name] = {
-                "enabled": bool(src.get("enabled", False)),
-                "queries": [q.strip() for q in src.get("queries", []) if str(q).strip()],
-                "location": str(src.get("location", "") or "").strip(),
+                "enabled": bool(src.get("enabled", current.enabled)),
+                "queries": [q.strip() for q in src.get("queries", current.queries)
+                            if str(q).strip()],
+                "location": str(src.get("location", current.location) or "").strip(),
                 "time_range": tr,
                 "remote": rm,
                 "max_pages": max(0, min(10, mp)),
             }
-        remote = data.get("remote", "")
+        remote = data.get("remote", config.search.remote or "")
         if remote not in {"", "remote", "hybrid", "onsite"}:
             errors.append("remote inválido")
         try:

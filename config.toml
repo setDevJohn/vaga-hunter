@@ -37,7 +37,7 @@ max_requests_per_run = 8
 queries = ["(dev OR desenvolvedor AND Fullstack OR Frontend)"]
 
 [sources.linkedin_jobs]
-enabled = true
+enabled = false
 queries = []
 location = ""
 time_range = ""
@@ -54,11 +54,11 @@ max_pages = 0
 
 [sources.infojobs]
 enabled = true
-queries = []
+queries = ["desenvolvedor", "programador", "desenvolvedor web"]
 location = ""
-time_range = "r24h"
-remote = ""
-max_pages = 0
+time_range = "r7d"
+remote = "any"
+max_pages = 5
 [http]
 min_delay = 2.0
 max_delay = 6.0

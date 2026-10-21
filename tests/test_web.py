@@ -221,3 +221,26 @@ def test_search_posts_rejected_when_disabled(client):
     assert resp.status_code == 400
     resp2 = test_client.post("/api/search", json={"what": "xyz"})
     assert resp2.status_code == 400
+
+
+def test_config_partial_update_preserves_values(client):
+    test_client, _ = client
+    test_client.post("/api/config", json={
+        "queries": ["x"], "remote": "hybrid",
+        "sources": {"infojobs": {"enabled": True, "queries": ["programador"],
+                                 "time_range": "r24h"}}})
+    # POST parcial: sem 'remote' e com source só trocando enabled
+    test_client.post("/api/config", json={
+        "queries": ["x"], "sources": {"infojobs": {"enabled": False}}})
+    cfg = test_client.get("/api/config").get_json()
+    assert cfg["remote"] == "hybrid"  # não resetou
+    ij = cfg["sources"]["infojobs"]
+    assert ij["enabled"] is False
+    assert ij["queries"] == ["programador"]  # preservado
+    assert ij["time_range"] == "r24h"
+
+
+def test_config_rejects_zero_time_range(client):
+    test_client, _ = client
+    resp = test_client.post("/api/config", json={"queries": ["x"], "time_range": "r0h"})
+    assert resp.status_code == 400
