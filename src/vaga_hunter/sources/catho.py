@@ -29,7 +29,10 @@ _BRT = timezone(timedelta(hours=-3))
 def query_slug(keywords: str) -> str:
     text = unicodedata.normalize("NFKD", keywords.lower())
     text = "".join(c for c in text if not unicodedata.combining(c))
-    return re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+    # pontos são preservados (slugs canônicos da Catho usam ".net");
+    # '#'/'+' não têm forma aceita na URL — "c#"/"c++" degradam para "c"
+    text = re.sub(r"[^a-z0-9.]+", "-", text)
+    return text.strip("-.") or "vagas"
 
 
 def build_url(filters: SearchFilters, page: int = 1) -> str:
@@ -56,7 +59,7 @@ def parse_posted_tag(text: str, now: datetime | None = None) -> datetime | None:
                              second=0, microsecond=0)
     except ValueError:
         return None
-    if posted > now:  # mês futuro = era do ano passado
+    if posted.date() > now.date():  # data futura = era do ano passado
         posted = posted.replace(year=posted.year - 1)
     return posted
 
@@ -137,8 +140,10 @@ class CathoSource(JobSource):
                  skip_detail: Callable[[str], bool] | None = None):
         self.session = session
         self.skip_detail = skip_detail or (lambda uid: False)
+        self._yielded: set[str] = set()
 
     def search(self, filters: SearchFilters) -> Iterator[Job]:
+        self._yielded.clear()
         cutoff = datetime.now(timezone.utc) - time_range_to_timedelta(filters.time_range)
         for page in range(1, filters.max_pages + 1):
             resp = self.session.get(build_url(filters, page))
@@ -149,7 +154,12 @@ class CathoSource(JobSource):
                                 "markup pode ter mudado")
                 break
             stale = 0
+            unseen = 0
             for job in jobs:
+                if job.uid in self._yielded:
+                    continue  # patrocinada pinada repete em toda página
+                self._yielded.add(job.uid)
+                unseen += 1
                 # corte client-side por período; patrocinadas antigas ficam
                 # pinadas no topo, então 'stale' só encerra se a página INTEIRA
                 # estiver fora da janela
@@ -161,8 +171,8 @@ class CathoSource(JobSource):
                     if description:
                         job.description = description
                 yield job
-            if stale == len(jobs):
-                break
+            if unseen == 0 or stale == unseen:
+                break  # só repetidas, ou tudo novo está fora da janela
 
     def _fetch_description(self, url: str) -> str:
         from ..http_client import SourceBlockedError

@@ -15,6 +15,9 @@ NOW = datetime(2026, 10, 21, 15, 0, tzinfo=BRT)
 def test_query_slug():
     assert query_slug("desenvolvedor fullstack júnior") == "desenvolvedor-fullstack-junior"
     assert query_slug("React Native") == "react-native"
+    assert query_slug("desenvolvedor .net") == "desenvolvedor-.net"  # Catho usa pontos
+    assert query_slug("c#") == "c"  # degradação documentada
+    assert query_slug("###") == "vagas"  # nunca slug vazio
 
 
 def test_build_url():
@@ -32,6 +35,10 @@ def test_parse_posted_tag():
     dt2 = parse_posted_tag("Publicada em 05/12", NOW)
     assert dt2.year == 2025
     assert parse_posted_tag("sem data", NOW) is None
+    # data de HOJE vista de manhã (antes do meio-dia) não pode virar ano passado
+    morning = NOW.replace(hour=9)
+    dt3 = parse_posted_tag("Publicada em 21/10", morning)
+    assert dt3.year == 2026
 
 
 def test_parse_search_page():
@@ -87,3 +94,19 @@ def test_search_stops_on_stale_page():
     jobs = list(source.search(SearchFilters(keywords="dev", time_range="r3d", max_pages=3)))
     assert [j.external_id for j in jobs] == ["1", "2"]
     assert len(calls) == 2  # página 2 toda velha encerra
+
+
+def test_search_stops_when_page_only_repeats_pinned():
+    """Patrocinada pinada repetida em toda página não gera loop nem duplica."""
+    page = "<html>" + _card("1", "Publicada Hoje") + "</html>"
+    calls = []
+
+    class FakeSession:
+        def get(self, url, params=None):
+            calls.append(url)
+            return FakeResp(page)
+
+    source = CathoSource(FakeSession(), skip_detail=lambda uid: True)
+    jobs = list(source.search(SearchFilters(keywords="dev", time_range="r3d", max_pages=5)))
+    assert [j.external_id for j in jobs] == ["1"]  # uma vez só
+    assert len(calls) == 2  # página 2 só repete -> para (não busca as 5)
