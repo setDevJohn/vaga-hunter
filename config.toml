@@ -82,8 +82,8 @@ db_path = "vaga_hunter.db"
 
 [sources.catho]
 enabled = true
-queries = ["desenvolvedor", "programador"]
+queries = ["desenvolvedor", "programador", "desenvolvedor web", "analista de sistemas"]
 location = ""
 time_range = "r3d"
 remote = ""
-max_pages = 2
+max_pages = 3
