@@ -1,0 +1,64 @@
+# Copie para config.toml e ajuste. NUNCA coloque tokens aqui — use variáveis de ambiente.
+
+[search]
+# Cada query vira uma busca separada no LinkedIn
+queries = [
+    "desenvolvedor fullstack",
+    "frontend developer",
+    "backend developer",
+    "react native",
+    "devops junior",
+]
+location = "Brasil"
+time_range = "r24h"        # r24h | r3d | r7d | r1m
+remote = "remote"          # remote | hybrid | onsite | "" (qualquer)
+max_pages_per_query = 3    # 25 vagas/página — mantenha baixo
+
+[profile]
+roles = ["fullstack", "frontend", "backend", "react native", "devops", "cloud", "platform"]
+seniority = ["junior", "pleno"]
+# Zeram o score (hard):
+exclude_keywords_hard = ["estágio", "estagiário", "trainee"]
+# Penalizam (soft):
+exclude_keywords_soft = ["senior", "sênior", "sr.", "especialista", "lead", "principal"]
+include_keywords = ["react", "typescript", "node", "python", "javascript", "aws", "docker"]
+
+[scoring]
+threshold = 60             # só notifica vagas com score >= threshold
+
+[scoring.weights]
+role_match = 30
+seniority = 20
+keywords = 20
+remote = 15
+recency = 15
+
+[sources]
+linkedin_jobs = true
+linkedin_posts = false     # requer sessão logada — risco baixo mas NÃO zero. Veja README.
+
+[sources.posts]
+mode = "disabled"          # disabled | browser (Chrome real via CDP)
+cdp_url = "http://127.0.0.1:9222"
+max_requests_per_run = 8
+
+[http]
+min_delay = 2.0
+max_delay = 6.0
+max_retries = 3
+circuit_breaker_threshold = 3
+cooldown_hours = 6
+
+[daemon]
+interval_minutes = 90
+jitter = 0.3               # intervalo real = interval * uniform(1-jitter, 1+jitter)
+window_start = "08:00"
+window_end = "20:00"
+weekdays_only = true
+
+[notify]
+telegram = true            # token/chat via env: VAGA_HUNTER_TELEGRAM_TOKEN e VAGA_HUNTER_TELEGRAM_CHAT_ID
+desktop = true
+
+[storage]
+db_path = "vaga_hunter.db"

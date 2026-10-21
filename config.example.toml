@@ -37,7 +37,7 @@ recency = 15
 linkedin_jobs = true
 linkedin_posts = false     # requer sessão logada — risco baixo mas NÃO zero. Veja README.
 
-[sources.linkedin_posts]
+[sources.posts]
 mode = "disabled"          # disabled | browser (Chrome real via CDP)
 cdp_url = "http://127.0.0.1:9222"
 max_requests_per_run = 8
