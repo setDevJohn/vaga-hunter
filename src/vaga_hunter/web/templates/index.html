@@ -4,20 +4,73 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>vaga-hunter</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>🎯</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<header>
-  <h1>🎯 vaga-hunter</h1>
-  <div class="controls">
-    <button id="btn-search" class="primary">Buscar agora</button>
-    <button id="btn-daemon" class="toggle">Daemon: …</button>
-    <span id="daemon-info" class="muted"></span>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">◎</span>
+    <h1>vaga-hunter</h1>
+  </div>
+  <div class="topbar-actions">
+    <button id="daemon-pill" class="pill" role="switch" aria-checked="false">
+      <span class="dot" aria-hidden="true"></span>
+      <span id="daemon-label">Daemon desligado</span>
+    </button>
+    <button id="btn-settings" class="icon-btn" aria-label="Parâmetros de busca" title="Parâmetros de busca">
+      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M8 5.2A2.8 2.8 0 1 0 8 10.8 2.8 2.8 0 0 0 8 5.2Zm5.8 2.8-.07-1.03-1.52-.45-.4-.97.76-1.4-.73-.73-1.4.76-.97-.4-.45-1.52L8 2.2l-1.03.07-.45 1.52-.97.4-1.4-.76-.73.73.76 1.4-.4.97-1.52.45L2.2 8l.07 1.03 1.52.45.4.97-.76 1.4.73.73 1.4-.76.97.4.45 1.52L8 13.8l1.03-.07.45-1.52.97-.4 1.4.76.73-.73-.76-1.4.4-.97 1.52-.45Z"/></svg>
+    </button>
+    <button id="btn-search" class="btn primary">
+      <span class="spinner" aria-hidden="true"></span>
+      <span class="btn-label">Buscar agora</span>
+    </button>
   </div>
 </header>
 
-<details id="params" class="params">
-  <summary>⚙️ Parâmetros de busca</summary>
+<section id="log-card" class="card log-card hidden">
+  <div class="log-head">
+    <span id="log-title"><span class="pulse-dot" aria-hidden="true"></span> Busca em andamento…</span>
+    <button id="log-close" class="icon-btn" aria-label="Fechar log">✕</button>
+  </div>
+  <pre id="log" role="log" aria-live="polite"></pre>
+</section>
+
+<nav class="chips" role="radiogroup" aria-label="Filtrar por status">
+  <button class="chip active" data-status="" aria-pressed="true">Todas <span class="count"></span></button>
+  <button class="chip" data-status="new" aria-pressed="false">Novas <span class="count"></span></button>
+  <button class="chip" data-status="notified" aria-pressed="false">Notificadas <span class="count"></span></button>
+  <button class="chip" data-status="interested" aria-pressed="false">Interessado <span class="count"></span></button>
+  <button class="chip" data-status="applied" aria-pressed="false">Aplicadas <span class="count"></span></button>
+  <button class="chip" data-status="seen" aria-pressed="false">Vistas <span class="count"></span></button>
+  <button class="chip" data-status="discarded" aria-pressed="false">Descartadas <span class="count"></span></button>
+</nav>
+
+<div class="toolbar">
+  <label class="score-filter">Score ≥
+    <select id="filter-score">
+      <option value="">0</option>
+      <option value="40">40</option>
+      <option value="60">60</option>
+      <option value="80">80</option>
+    </select>
+  </label>
+  <span id="jobs-count" class="muted"></span>
+</div>
+
+<ul id="jobs" role="list"></ul>
+
+<div id="empty-state" class="empty hidden">
+  <p id="empty-text">Nenhuma vaga ainda.</p>
+  <button id="empty-action" class="btn">Buscar agora</button>
+</div>
+
+<dialog id="params-dialog" aria-labelledby="params-title">
+  <h2 id="params-title">⚙️ Parâmetros de busca</h2>
   <div class="params-grid">
     <label class="full">Buscas (uma por linha)
       <textarea id="cfg-queries" rows="5" spellcheck="false"></textarea>
@@ -42,37 +95,13 @@
     <label>Páginas por busca <input type="number" id="cfg-max-pages" min="1" max="10"></label>
     <label>Score p/ notificar <input type="number" id="cfg-threshold" min="0" max="100" step="5"></label>
     <div class="params-actions">
-      <button id="btn-save-config" class="primary">Salvar</button>
-      <span id="cfg-feedback" class="muted"></span>
+      <button id="btn-save-config" class="btn primary">Salvar</button>
+      <button id="btn-close-config" class="btn">Cancelar</button>
     </div>
   </div>
-</details>
+</dialog>
 
-<section id="log-panel" class="hidden">
-  <pre id="log"></pre>
-</section>
-
-<section class="filters">
-  <label>Status
-    <select id="filter-status">
-      <option value="">todos</option>
-      <option value="new">novas</option>
-      <option value="notified">notificadas</option>
-      <option value="interested">interessado</option>
-      <option value="applied">aplicadas</option>
-      <option value="discarded">descartadas</option>
-      <option value="seen">vistas</option>
-    </select>
-  </label>
-  <label>Score mínimo <input type="number" id="filter-score" min="0" max="100" step="5" placeholder="0"></label>
-</section>
-
-<table id="jobs">
-  <thead>
-    <tr><th>Score</th><th>Vaga</th><th>Empresa</th><th>Local</th><th>Publicada</th><th>Status</th><th>Ações</th></tr>
-  </thead>
-  <tbody></tbody>
-</table>
+<div id="toasts" aria-live="polite"></div>
 
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>

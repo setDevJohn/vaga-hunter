@@ -1,6 +1,7 @@
 """Interface web: busca manual, toggle do daemon, triagem das vagas."""
 from __future__ import annotations
 
+import json
 import logging
 import threading
 from pathlib import Path
@@ -89,6 +90,7 @@ def create_app(config: Config, storage: Storage | None = None,
             "search": {"running": state.running, "messages": state.messages[-50:],
                        "report": state.report},
             "daemon": daemon.status(),
+            "counts": storage.count_by_status(),
         })
 
     @app.get("/api/jobs")
@@ -97,7 +99,22 @@ def create_app(config: Config, storage: Storage | None = None,
         min_score = request.args.get("min_score", type=float)
         rows = storage.list_jobs(status=status, min_score=min_score,
                                  limit=request.args.get("limit", 200, type=int))
-        return jsonify([dict(row) for row in rows])
+        jobs = []
+        for row in rows:
+            try:
+                details = json.loads(row["score_details"] or "{}")
+            except (ValueError, TypeError):
+                details = {}
+            jobs.append({
+                "uid": row["uid"], "source": row["source"],
+                "title": row["title"], "company": row["company"],
+                "location": row["location"], "url": row["url"],
+                "description": (row["description"] or "")[:800],
+                "posted_at": row["posted_at"], "remote": row["remote"],
+                "score": row["score"], "score_details": details,
+                "status": row["status"], "first_seen_at": row["first_seen_at"],
+            })
+        return jsonify(jobs)
 
     @app.post("/api/jobs/<path:uid>/status")
     def api_job_status(uid: str):

@@ -1,19 +1,49 @@
 "use strict";
 
 const $ = (sel) => document.querySelector(sel);
-let daemonRunning = false;
-let polling = null;
+const $$ = (sel) => [...document.querySelectorAll(sel)];
+
+const STATUS_PT = {
+  new: "nova", notified: "notificada", interested: "interessado",
+  applied: "aplicada", discarded: "descartada", seen: "vista",
+};
+const BREAKDOWN_PT = {
+  role_match: "Cargo", seniority: "Senioridade", keywords: "Keywords",
+  remote: "Remoto", recency: "Recência", hard_exclude: "Excluída",
+};
+const ICONS = {
+  interested: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M8 1.5l1.9 4 4.4.5-3.3 3 .9 4.3L8 11.1l-3.9 2.2.9-4.3-3.3-3 4.4-.5z"/></svg>',
+  applied: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M1.5 7.5L14.5 1.5 10 14.5 7.3 9.4 1.5 7.5zM7.8 8.9l2 3.8 3-8.9-9 4.2 4 1z"/></svg>',
+  seen: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>',
+  discarded: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M3.5 3.5l9 9m0-9l-9 9"/></svg>',
+};
+
+const state = {
+  filterStatus: "", minScore: "",
+  jobs: [], knownUids: new Set(), firstLoad: true,
+  daemonRunning: false, searchPolling: null, expandedUid: null,
+  lastStatusJson: "",
+};
+
+/* ---------- infra ---------- */
 
 async function api(path, options = {}) {
-  const resp = await fetch(path, {
-    headers: {
-      "Content-Type": "application/json",
-      // Força preflight CORS: bloqueia POST cross-origin de outras páginas
-      "X-Requested-With": "vaga-hunter",
-    },
-    ...options,
-  });
-  return resp.json();
+  let resp;
+  try {
+    resp = await fetch(path, {
+      headers: { "Content-Type": "application/json", "X-Requested-With": "vaga-hunter" },
+      ...options,
+    });
+  } catch {
+    toast("Servidor fora do ar?", "danger");
+    throw new Error("network");
+  }
+  const body = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    toast(body.error || `Erro ${resp.status}`, "danger");
+    throw new Error(body.error || resp.status);
+  }
+  return body;
 }
 
 function esc(text) {
@@ -30,87 +60,220 @@ function safeUrl(url) {
   return "#";
 }
 
+function toast(message, kind = "", actionLabel = "", onAction = null) {
+  const el = document.createElement("div");
+  el.className = `toast ${kind}`;
+  el.innerHTML = `<span>${esc(message)}</span>`;
+  if (actionLabel && onAction) {
+    const btn = document.createElement("button");
+    btn.textContent = actionLabel;
+    btn.addEventListener("click", () => { onAction(); el.remove(); });
+    el.appendChild(btn);
+  }
+  $("#toasts").appendChild(el);
+  setTimeout(() => el.remove(), 5000);
+}
+
+function relDate(iso) {
+  if (!iso) return "";
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (days <= 0) return "hoje";
+  if (days === 1) return "ontem";
+  if (days < 30) return `há ${days} dias`;
+  return `há ${Math.floor(days / 30)} mês(es)`;
+}
+
+function scoreBand(score) {
+  if (score >= 80) return "hot";
+  if (score >= 60) return "good";
+  if (score >= 40) return "mid";
+  return "low";
+}
+
+/* ---------- jobs list ---------- */
+
+function jobCard(job) {
+  const status = job.status;
+  const isNew = status === "new";
+  const badges = [];
+  if (job.remote === 1) badges.push('<span class="badge outline">remoto</span>');
+  if (!isNew) badges.push(`<span class="badge ${esc(status)}">${esc(STATUS_PT[status] || status)}</span>`);
+
+  const actions = ["interested", "applied", "seen", "discarded"].map((s) => `
+    <button class="action ${status === s ? "current" : ""}" data-status="${s}"
+      data-tip="${{ interested: "Interessado", applied: "Apliquei", seen: "Vista", discarded: "Descartar" }[s]}"
+      aria-label="${{ interested: "Marcar interessado", applied: "Marcar aplicada", seen: "Marcar vista", discarded: "Descartar" }[s]}">
+      ${ICONS[s]}</button>`).join("");
+
+  return `
+  <li class="job ${isNew ? "is-new" : ""} ${status === "discarded" ? "discarded" : ""}"
+      data-uid="${esc(job.uid)}">
+    <div class="job-row1">
+      <span class="score-chip score-${scoreBand(job.score)}"
+            aria-label="score ${Math.round(job.score)} de 100">${Math.round(job.score)}</span>
+      <a class="job-title" href="${esc(safeUrl(job.url))}" target="_blank" rel="noopener">${esc(job.title)}</a>
+      <div class="job-actions">${actions}</div>
+    </div>
+    <div class="job-row2">
+      <span>${esc(job.company || "?")}</span>
+      ${job.location ? `<span class="sep">·</span><span>${esc(job.location)}</span>` : ""}
+      ${job.posted_at ? `<span class="sep">·</span><span title="${esc(job.posted_at)}">${relDate(job.posted_at)}</span>` : ""}
+      ${badges.join(" ")}
+      <button class="job-expand" aria-expanded="false">▸ detalhes</button>
+    </div>
+  </li>`;
+}
+
+function detailsPanel(job) {
+  const details = job.score_details || {};
+  const rows = Object.entries(details).map(([key, value]) => {
+    const width = Math.min(100, Math.abs(value) * 3.3);
+    return `<div class="bk-row"><span>${esc(BREAKDOWN_PT[key] || key)}</span>
+      <span class="bk-bar ${value < 0 ? "neg" : ""}"><i style="width:${width}%"></i></span>
+      <span class="bk-val">${value > 0 ? "+" : ""}${Math.round(value)}</span></div>`;
+  }).join("") || '<p class="muted">sem detalhes</p>';
+
+  const desc = (job.description || "").trim();
+  return `<div class="job-details">
+    <div class="job-desc">${desc ? esc(desc.slice(0, 600)) + (desc.length >= 600 ? "…" : "") : '<span class="muted">sem descrição salva</span>'}
+      <p><a href="${esc(safeUrl(job.url))}" target="_blank" rel="noopener">abrir vaga ↗</a></p></div>
+    <div class="breakdown"><h4>Score</h4>${rows}</div>
+  </div>`;
+}
+
 async function loadJobs() {
   const params = new URLSearchParams();
-  const status = $("#filter-status").value;
-  const score = $("#filter-score").value;
-  if (status) params.set("status", status);
-  if (score) params.set("min_score", score);
-  const jobs = await api(`/api/jobs?${params}`);
-  const tbody = $("#jobs tbody");
-  tbody.innerHTML = jobs.map((job) => `
-    <tr data-uid="${esc(job.uid)}">
-      <td class="score">${job.score.toFixed(1)}</td>
-      <td><a href="${esc(safeUrl(job.url))}" target="_blank" rel="noopener">${esc(job.title)}</a></td>
-      <td>${esc(job.company)}</td>
-      <td>${esc(job.location)}</td>
-      <td>${job.posted_at ? job.posted_at.slice(0, 10) : "—"}</td>
-      <td><span class="badge ${esc(job.status)}">${esc(job.status)}</span></td>
-      <td class="actions">
-        <button data-status="interested" title="Interessado">⭐</button>
-        <button data-status="applied" title="Apliquei nessa vaga">📨</button>
-        <button data-status="discarded" title="Descartar">🗑️</button>
-        <button data-status="seen" title="Marcar como vista">👁️</button>
-      </td>
-    </tr>`).join("");
-}
+  if (state.filterStatus) params.set("status", state.filterStatus);
+  if (state.minScore) params.set("min_score", state.minScore);
 
-async function setStatus(uid, status) {
-  await api(`/api/jobs/${encodeURIComponent(uid)}/status`, {
-    method: "POST",
-    body: JSON.stringify({ status }),
-  });
-  loadJobs();
-}
-
-function renderStatus(data) {
-  const { search, daemon } = data;
-  daemonRunning = daemon.running;
-  const btn = $("#btn-daemon");
-  btn.textContent = daemonRunning ? "Daemon: LIGADO" : "Daemon: desligado";
-  btn.classList.toggle("on", daemonRunning);
-
-  const info = [];
-  if (daemon.last_run) info.push(`última: ${daemon.last_run.slice(11, 16)}`);
-  if (daemonRunning && daemon.next_run) info.push(`próxima: ${daemon.next_run.slice(11, 16)}`);
-  if (daemonRunning && !daemon.in_window) info.push("fora da janela");
-  $("#daemon-info").textContent = info.join(" · ");
-
-  $("#btn-search").disabled = search.running;
-  const panel = $("#log-panel");
-  if (search.messages.length) {
-    panel.classList.remove("hidden");
-    const log = $("#log");
-    log.textContent = search.messages.join("\n");
-    log.parentElement.scrollTop = log.parentElement.scrollHeight;
+  if (state.firstLoad) {
+    $("#jobs").innerHTML = '<li class="skeleton"></li>'.repeat(6);
   }
-  if (!search.running && polling) {
-    clearInterval(polling);
-    polling = null;
+  const jobs = await api(`/api/jobs?${params}`);
+  const previousKnown = state.knownUids;
+  state.jobs = jobs;
+  state.expandedUid = null;
+
+  $("#jobs").innerHTML = jobs.map(jobCard).join("");
+  if (!state.firstLoad) {
+    for (const el of $$(".job")) {
+      if (!previousKnown.has(el.dataset.uid)) el.classList.add("flash");
+    }
+  }
+  for (const job of jobs) state.knownUids.add(job.uid);
+  state.firstLoad = false;
+
+  $("#jobs-count").textContent = `${jobs.length} vaga${jobs.length === 1 ? "" : "s"}`;
+  const empty = $("#empty-state");
+  if (jobs.length === 0) {
+    empty.classList.remove("hidden");
+    const filtered = state.filterStatus || state.minScore;
+    $("#empty-text").textContent = filtered ? "Nada com esses filtros." : "Nenhuma vaga ainda.";
+    $("#empty-action").textContent = filtered ? "Limpar filtros" : "Buscar agora";
+  } else {
+    empty.classList.add("hidden");
+  }
+}
+
+/* ---------- status updates (optimistic) ---------- */
+
+async function setStatus(card, newStatus) {
+  const uid = card.dataset.uid;
+  const job = state.jobs.find((j) => j.uid === uid);
+  if (!job || job.status === newStatus) return;
+  const previous = job.status;
+  job.status = newStatus;
+
+  // Atualização otimista do card
+  card.outerHTML = jobCard(job);
+
+  const leavesFilter = state.filterStatus && state.filterStatus !== newStatus;
+  if (leavesFilter) {
+    const fresh = document.querySelector(`.job[data-uid="${CSS.escape(uid)}"]`);
+    fresh?.classList.add("removing");
+    setTimeout(() => fresh?.remove(), 200);
+  }
+  if (newStatus === "discarded" || leavesFilter) {
+    toast(`${STATUS_PT[newStatus]} · ${job.title.slice(0, 40)}`, "", "desfazer", () => {
+      job.status = previous;
+      api(`/api/jobs/${encodeURIComponent(uid)}/status`, {
+        method: "POST", body: JSON.stringify({ status: previous }),
+      }).then(() => { loadJobs(); refreshStatus(true); });
+    });
+  }
+
+  try {
+    await api(`/api/jobs/${encodeURIComponent(uid)}/status`, {
+      method: "POST", body: JSON.stringify({ status: newStatus }),
+    });
+    refreshStatus(true);
+  } catch {
+    job.status = previous;
     loadJobs();
   }
 }
 
-async function refreshStatus() {
+/* ---------- status/daemon polling ---------- */
+
+function renderStatus(data) {
+  const json = JSON.stringify(data);
+  if (json === state.lastStatusJson) return;
+  state.lastStatusJson = json;
+
+  const { search, daemon, counts } = data;
+  state.daemonRunning = daemon.running;
+
+  const pill = $("#daemon-pill");
+  pill.classList.toggle("on", daemon.running);
+  pill.classList.toggle("warn", daemon.running && !daemon.in_window);
+  pill.setAttribute("aria-checked", String(daemon.running));
+  let label = daemon.running ? "Daemon ligado" : "Daemon desligado";
+  if (daemon.running && daemon.next_run) label += ` · próxima ${daemon.next_run.slice(11, 16)}`;
+  if (daemon.running && !daemon.in_window) label += " · fora da janela";
+  $("#daemon-label").textContent = label;
+
+  // chips com contagem
+  const total = Object.values(counts || {}).reduce((a, b) => a + b, 0);
+  for (const chip of $$(".chip")) {
+    const key = chip.dataset.status;
+    const value = key === "" ? total : (counts?.[key] || 0);
+    chip.querySelector(".count").textContent = value ? `${value}` : "";
+  }
+
+  // busca manual
+  const btn = $("#btn-search");
+  btn.disabled = search.running;
+  btn.classList.toggle("loading", search.running);
+  btn.querySelector(".btn-label").textContent = search.running ? "Buscando…" : "Buscar agora";
+
+  const logCard = $("#log-card");
+  if (search.messages.length) {
+    logCard.classList.remove("hidden");
+    $("#log-title").innerHTML = search.running
+      ? '<span class="pulse-dot" aria-hidden="true"></span> Busca em andamento…'
+      : "Busca concluída";
+    const log = $("#log");
+    log.textContent = search.messages.join("\n");
+    log.scrollTop = log.scrollHeight;
+  }
+  if (!search.running && state.searchPolling) {
+    clearInterval(state.searchPolling);
+    state.searchPolling = null;
+    if (search.report) {
+      toast(`${search.report.found} vagas, ${search.report.new} novas, ${search.report.notified} notificadas`,
+            search.report.errors?.length ? "danger" : "ok");
+    }
+    loadJobs();
+    setTimeout(() => logCard.classList.add("hidden"), 10000);
+  }
+}
+
+async function refreshStatus(force = false) {
+  if (force) state.lastStatusJson = "";
   renderStatus(await api("/api/status"));
 }
 
-$("#btn-search").addEventListener("click", async () => {
-  const result = await api("/api/search", { method: "POST" });
-  if (result.ok && !polling) polling = setInterval(refreshStatus, 1000);
-  refreshStatus();
-});
-
-$("#btn-daemon").addEventListener("click", async () => {
-  await api(`/api/daemon/${daemonRunning ? "stop" : "start"}`, { method: "POST" });
-  refreshStatus();
-});
-
-$("#jobs tbody").addEventListener("click", (event) => {
-  const button = event.target.closest("button[data-status]");
-  if (!button) return;
-  setStatus(button.closest("tr").dataset.uid, button.dataset.status);
-});
+/* ---------- config dialog ---------- */
 
 async function loadConfig() {
   const cfg = await api("/api/config");
@@ -122,9 +285,76 @@ async function loadConfig() {
   $("#cfg-threshold").value = cfg.threshold;
 }
 
+/* ---------- wiring ---------- */
+
+$("#btn-search").addEventListener("click", async () => {
+  try {
+    await api("/api/search", { method: "POST" });
+  } catch { return; }
+  if (!state.searchPolling) state.searchPolling = setInterval(() => refreshStatus(), 1000);
+  refreshStatus(true);
+});
+
+$("#daemon-pill").addEventListener("click", async () => {
+  $("#daemon-label").textContent = "…";
+  await api(`/api/daemon/${state.daemonRunning ? "stop" : "start"}`, { method: "POST" });
+  refreshStatus(true);
+});
+
+$("#jobs").addEventListener("click", (event) => {
+  const actionBtn = event.target.closest("button.action");
+  const card = event.target.closest(".job");
+  if (!card) return;
+  if (actionBtn) { setStatus(card, actionBtn.dataset.status); return; }
+
+  const expandBtn = event.target.closest(".job-expand");
+  if (expandBtn || (!event.target.closest("a") && !event.target.closest("button"))) {
+    const uid = card.dataset.uid;
+    const open = state.expandedUid === uid;
+    document.querySelector(".job-details")?.remove();
+    $$(".job-expand").forEach((b) => { b.setAttribute("aria-expanded", "false"); b.textContent = "▸ detalhes"; });
+    state.expandedUid = open ? null : uid;
+    if (!open) {
+      const job = state.jobs.find((j) => j.uid === uid);
+      card.insertAdjacentHTML("beforeend", detailsPanel(job));
+      const btn = card.querySelector(".job-expand");
+      btn.setAttribute("aria-expanded", "true");
+      btn.textContent = "▾ fechar";
+    }
+  }
+});
+
+for (const chip of $$(".chip")) {
+  chip.addEventListener("click", () => {
+    $$(".chip").forEach((c) => { c.classList.remove("active"); c.setAttribute("aria-pressed", "false"); });
+    chip.classList.add("active");
+    chip.setAttribute("aria-pressed", "true");
+    state.filterStatus = chip.dataset.status;
+    loadJobs();
+  });
+}
+
+$("#filter-score").addEventListener("change", () => {
+  state.minScore = $("#filter-score").value;
+  loadJobs();
+});
+
+$("#empty-action").addEventListener("click", () => {
+  if (state.filterStatus || state.minScore) {
+    state.filterStatus = ""; state.minScore = "";
+    $("#filter-score").value = "";
+    $$(".chip").forEach((c) => c.classList.toggle("active", c.dataset.status === ""));
+    loadJobs();
+  } else {
+    $("#btn-search").click();
+  }
+});
+
+$("#log-close").addEventListener("click", () => $("#log-card").classList.add("hidden"));
+
+$("#btn-settings").addEventListener("click", () => $("#params-dialog").showModal());
+$("#btn-close-config").addEventListener("click", () => $("#params-dialog").close());
 $("#btn-save-config").addEventListener("click", async () => {
-  const feedback = $("#cfg-feedback");
-  feedback.textContent = "salvando…";
   const result = await api("/api/config", {
     method: "POST",
     body: JSON.stringify({
@@ -136,16 +366,13 @@ $("#btn-save-config").addEventListener("click", async () => {
       threshold: $("#cfg-threshold").value,
     }),
   });
-  feedback.textContent = result.ok
-    ? (result.saved_to_file ? "✓ salvo no config.toml" : "✓ aplicado (sem config.toml)")
-    : `erro: ${result.error}`;
-  setTimeout(() => { feedback.textContent = ""; }, 4000);
+  if (result.ok) {
+    $("#params-dialog").close();
+    toast(result.saved_to_file ? "Parâmetros salvos no config.toml" : "Parâmetros aplicados", "ok");
+  }
 });
-
-$("#filter-status").addEventListener("change", loadJobs);
-$("#filter-score").addEventListener("change", loadJobs);
 
 refreshStatus();
 loadJobs();
 loadConfig();
-setInterval(refreshStatus, 5000);
+setInterval(() => refreshStatus(), 5000);
