@@ -12,7 +12,7 @@ from ..config import Config, save_search_params
 from ..daemon import DaemonController
 from ..models import JobStatus
 from ..pipeline import build_sources, run_search
-from ..scoring import Scorer
+from ..scoring import Scorer, detect_modality
 from ..storage import Storage
 
 log = logging.getLogger(__name__)
@@ -111,6 +111,7 @@ def create_app(config: Config, storage: Storage | None = None,
                 "location": row["location"], "url": row["url"],
                 "description": (row["description"] or "")[:800],
                 "posted_at": row["posted_at"], "remote": row["remote"],
+                "modality": detect_modality(row["title"], row["description"] or ""),
                 "score": row["score"], "score_details": details,
                 "status": row["status"], "first_seen_at": row["first_seen_at"],
             })

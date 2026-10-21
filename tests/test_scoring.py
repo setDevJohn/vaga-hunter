@@ -126,3 +126,12 @@ def test_sr_word_boundary(scorer):
     s_senior, _ = scorer.score(senior, now=NOW)
     s_normal, _ = scorer.score(normal, now=NOW)
     assert s_senior < s_normal
+
+
+def test_detect_modality():
+    from vaga_hunter.scoring import detect_modality
+    assert detect_modality("Dev Fullstack", "Trabalho 100% remoto, home office.") == "remote"
+    assert detect_modality("Dev Backend - Remoto", "") == "remote"
+    assert detect_modality("Dev Java", "Modelo híbrido: 2 dias no escritório, 3 remotos.") == "hybrid"
+    assert detect_modality("Dev Python", "Vaga presencial em São Paulo.") == "onsite"
+    assert detect_modality("Dev React", "Stack moderna, time legal.") is None

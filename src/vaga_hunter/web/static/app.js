@@ -96,7 +96,8 @@ function jobCard(job) {
   const status = job.status;
   const isNew = status === "new";
   const badges = [];
-  if (job.remote === 1) badges.push('<span class="badge outline">remoto</span>');
+  const MODALITY_PT = { remote: "🏠 remoto", hybrid: "🔄 híbrido", onsite: "🏢 presencial" };
+  if (job.modality) badges.push(`<span class="badge outline modality-${esc(job.modality)}">${MODALITY_PT[job.modality]}</span>`);
   if (!isNew) badges.push(`<span class="badge ${esc(status)}">${esc(STATUS_PT[status] || status)}</span>`);
 
   const actions = ["interested", "applied", "seen", "discarded"].map((s) => `

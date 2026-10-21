@@ -34,7 +34,25 @@ SENIOR_DESC_RE = re.compile(
 )
 MOBILE_WORDS = ["mobile", "android", "ios", "flutter", "kotlin", "swift"]
 INFRA_ROLES = ("devops", "cloud", "platform")
-REMOTE_WORDS = ["remoto", "remote", "home office", "homeoffice", "anywhere"]
+REMOTE_WORDS = ["remoto", "remota", "remote", "home office", "homeoffice", "anywhere"]
+HYBRID_WORDS = ["hibrido", "hibrida", "hybrid", "semi-presencial", "semipresencial"]
+ONSITE_WORDS = ["presencial", "on-site", "onsite", "in office"]
+
+
+def detect_modality(title: str, description: str) -> str | None:
+    """Infere a modalidade (remote/hybrid/onsite) do texto da vaga.
+
+    Híbrido ganha de remoto ("modelo híbrido com dias remotos" é híbrido).
+    Retorna None quando o texto não diz nada.
+    """
+    text = _normalize(f"{title}\n{description}")
+    if any(_contains(text, w) for w in HYBRID_WORDS):
+        return "hybrid"
+    if any(_contains(text, w) for w in REMOTE_WORDS):
+        return "remote"
+    if any(_contains(text, w) for w in ONSITE_WORDS):
+        return "onsite"
+    return None
 
 
 def _normalize(text: str) -> str:
