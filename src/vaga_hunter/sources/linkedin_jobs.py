@@ -22,12 +22,27 @@ PAGE_URL = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/sear
 DETAIL_URL = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{job_id}"
 PAGE_SIZE = 25
 
-TIME_RANGES = {  # f_TPR em segundos
+TIME_RANGES = {  # presets f_TPR em segundos
     "r24h": "r86400",
     "r3d": "r259200",
     "r7d": "r604800",
     "r1m": "r2592000",
 }
+_UNIT_SECONDS = {"m": 60, "h": 3600, "d": 86400}
+TIME_RANGE_RE = re.compile(r"^r(\d+)(m|h|d)$")
+
+
+def time_range_to_f_tpr(value: str) -> str:
+    """Converte time_range em f_TPR. Aceita presets (r24h, r3d, r7d, r1m)
+    e formas livres rN{m,h,d}: r30m, r1h, r2h, r12h... Default: 7 dias."""
+    if value in TIME_RANGES:
+        return TIME_RANGES[value]
+    match = TIME_RANGE_RE.match(value or "")
+    if match:
+        seconds = int(match.group(1)) * _UNIT_SECONDS[match.group(2)]
+        if seconds > 0:
+            return f"r{seconds}"
+    return TIME_RANGES["r7d"]
 WORKPLACE = {"onsite": "1", "remote": "2", "hybrid": "3"}  # f_WT
 # Sem geoId o endpoint guest ignora `location` e devolve vagas do mundo todo.
 GEO_IDS = {"brasil": "106057199", "brazil": "106057199"}
@@ -47,7 +62,7 @@ def build_params(filters: SearchFilters, start: int = 0) -> dict[str, str]:
     params = {
         "keywords": keywords,
         "location": location or "Brasil",
-        "f_TPR": TIME_RANGES.get(filters.time_range, TIME_RANGES["r7d"]),
+        "f_TPR": time_range_to_f_tpr(filters.time_range),
         "sortBy": "DD",
         "start": str(start),
     }

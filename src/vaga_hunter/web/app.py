@@ -144,9 +144,11 @@ def create_app(config: Config, storage: Storage | None = None,
         queries = [q.strip() for q in data.get("queries", []) if str(q).strip()]
         if not queries:
             errors.append("informe pelo menos uma busca")
+        import re as _re
         time_range = data.get("time_range", config.search.time_range)
-        if time_range not in {"r24h", "r3d", "r7d", "r1m"}:
-            errors.append("time_range inválido")
+        if time_range not in {"r24h", "r3d", "r7d", "r1m"} and \
+                not _re.match(r"^r\d+(m|h|d)$", time_range):
+            errors.append("time_range inválido (use r30m, r1h, r2h, r24h, r3d...)")
         remote = data.get("remote", "")
         if remote not in {"", "remote", "hybrid", "onsite"}:
             errors.append("remote inválido")

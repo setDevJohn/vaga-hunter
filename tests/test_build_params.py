@@ -52,3 +52,20 @@ def test_geo_id_for_brasil():
 
 def test_pagination_start():
     assert build_params(SearchFilters(keywords="x"), start=50)["start"] == "50"
+
+
+def test_time_range_custom_hours_minutes():
+    from vaga_hunter.sources.linkedin_jobs import time_range_to_f_tpr
+    assert time_range_to_f_tpr("r30m") == "r1800"
+    assert time_range_to_f_tpr("r1h") == "r3600"
+    assert time_range_to_f_tpr("r2h") == "r7200"
+    assert time_range_to_f_tpr("r12h") == "r43200"
+    assert time_range_to_f_tpr("r2d") == "r172800"
+    # presets têm precedência: r1m = 1 mês, não 1 minuto
+    assert time_range_to_f_tpr("r1m") == "r2592000"
+    # inválidos caem no default de 7 dias
+    assert time_range_to_f_tpr("abc") == "r604800"
+    assert time_range_to_f_tpr("r0h") == "r604800"
+
+    params = build_params(SearchFilters(keywords="x", time_range="r1h"))
+    assert params["f_TPR"] == "r3600"

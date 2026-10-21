@@ -279,7 +279,11 @@ async function loadConfig() {
   const cfg = await api("/api/config");
   $("#cfg-queries").value = cfg.queries.join("\n");
   $("#cfg-location").value = cfg.location;
-  $("#cfg-time-range").value = cfg.time_range;
+  const timeSel = $("#cfg-time-range");
+  if (![...timeSel.options].some((o) => o.value === cfg.time_range)) {
+    timeSel.add(new Option(cfg.time_range, cfg.time_range));  // valor custom do config.toml
+  }
+  timeSel.value = cfg.time_range;
   $("#cfg-remote").value = cfg.remote;
   $("#cfg-max-pages").value = cfg.max_pages_per_query;
   $("#cfg-threshold").value = cfg.threshold;
