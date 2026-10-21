@@ -2,12 +2,24 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import threading
+import unicodedata
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .models import Job, JobStatus
+
+
+def job_fingerprint(title: str, company: str) -> str:
+    """Identidade semântica da vaga: mesma vaga repostada com outro id
+    (ex.: por região) tem o mesmo fingerprint."""
+    def norm(text: str) -> str:
+        text = unicodedata.normalize("NFKD", text.lower())
+        text = "".join(c for c in text if not unicodedata.combining(c))
+        return re.sub(r"[^a-z0-9]+", " ", text).strip()
+    return f"{norm(title)}|{norm(company)}"
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -25,7 +37,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     score_details TEXT DEFAULT '{}',
     status        TEXT DEFAULT 'new',
     first_seen_at TEXT NOT NULL,
-    last_seen_at  TEXT NOT NULL
+    last_seen_at  TEXT NOT NULL,
+    fingerprint   TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_jobs_score ON jobs(score DESC);
@@ -64,6 +77,21 @@ class Storage:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
+        self._migrate()
+
+    def _migrate(self) -> None:
+        cols = {row["name"] for row in
+                self._conn.execute("PRAGMA table_info(jobs)").fetchall()}
+        if "fingerprint" not in cols:
+            self._conn.execute("ALTER TABLE jobs ADD COLUMN fingerprint TEXT")
+            for row in self._conn.execute(
+                    "SELECT uid, title, company FROM jobs").fetchall():
+                self._conn.execute(
+                    "UPDATE jobs SET fingerprint = ? WHERE uid = ?",
+                    (job_fingerprint(row["title"], row["company"]), row["uid"]))
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_jobs_fingerprint ON jobs(fingerprint)")
+        self._conn.commit()
 
     def close(self) -> None:
         with self._lock:
@@ -85,27 +113,39 @@ class Storage:
         Retorna True se a vaga é nova.
         """
         now = _now()
+        fingerprint = job_fingerprint(job.title, job.company)
         with self._lock:  # check-then-insert atômico: todo acesso passa pelo lock
             row = self._conn.execute(
                 "SELECT 1 FROM jobs WHERE uid = ?", (job.uid,)).fetchone()
-            is_new = row is None
-            if is_new:
-                self._conn.execute(
-                    """INSERT INTO jobs (uid, source, external_id, title, company,
-                           location, url, description, posted_at, remote, score,
-                           score_details, status, first_seen_at, last_seen_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (job.uid, job.source, job.external_id, job.title, job.company,
-                     job.location, job.url, job.description,
-                     job.posted_at.isoformat() if job.posted_at else None,
-                     None if job.remote is None else int(job.remote),
-                     score, json.dumps(details), JobStatus.NEW, now, now),
-                )
-            else:
+            if row is not None:
                 self._conn.execute(
                     "UPDATE jobs SET last_seen_at = ? WHERE uid = ?", (now, job.uid))
+                self._conn.commit()
+                return False
+            # Mesmo título+empresa com outro id (repost por região): duplicata —
+            # não insere nem notifica, só marca a original como vista de novo.
+            dup = self._conn.execute(
+                "SELECT uid FROM jobs WHERE fingerprint = ? LIMIT 1",
+                (fingerprint,)).fetchone()
+            if dup is not None:
+                self._conn.execute(
+                    "UPDATE jobs SET last_seen_at = ? WHERE uid = ?",
+                    (now, dup["uid"]))
+                self._conn.commit()
+                return False
+            self._conn.execute(
+                """INSERT INTO jobs (uid, source, external_id, title, company,
+                       location, url, description, posted_at, remote, score,
+                       score_details, status, first_seen_at, last_seen_at, fingerprint)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (job.uid, job.source, job.external_id, job.title, job.company,
+                 job.location, job.url, job.description,
+                 job.posted_at.isoformat() if job.posted_at else None,
+                 None if job.remote is None else int(job.remote),
+                 score, json.dumps(details), JobStatus.NEW, now, now, fingerprint),
+            )
             self._conn.commit()
-        return is_new
+        return True
 
     def list_jobs(self, status: str | None = None, min_score: float | None = None,
                   limit: int = 200) -> list[sqlite3.Row]:
@@ -130,6 +170,19 @@ class Storage:
                 "UPDATE jobs SET status = ? WHERE uid = ?", (status, uid))
             self._conn.commit()
         return cur.rowcount > 0
+
+    def update_score(self, uid: str, score: float, details: dict[str, float]) -> None:
+        with self._lock:
+            self._conn.execute(
+                "UPDATE jobs SET score = ?, score_details = ? WHERE uid = ?",
+                (score, json.dumps(details), uid))
+            self._conn.commit()
+
+    def count_by_status(self) -> dict[str, int]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT status, COUNT(*) AS n FROM jobs GROUP BY status").fetchall()
+        return {row["status"]: row["n"] for row in rows}
 
     def mark_notified(self, uids: list[str]) -> None:
         with self._lock:

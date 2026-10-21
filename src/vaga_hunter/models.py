@@ -49,3 +49,4 @@ class RunReport:
     new: int = 0
     notified: int = 0
     errors: list[str] = field(default_factory=list)
+    preview: list[tuple["Job", float]] = field(default_factory=list)  # só em dry-run

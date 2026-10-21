@@ -42,14 +42,50 @@ def cmd_run(config: Config, args: argparse.Namespace) -> int:
     if report.errors:
         print("Erros:", *report.errors, sep="\n  ")
 
-    rows = storage.list_jobs(min_score=args.min_score, limit=args.limit)
-    if rows:
-        print(f"\n{'SCORE':>5}  {'STATUS':<10}  {'TÍTULO':<55}  {'EMPRESA':<25}  LOCAL")
-        for row in rows:
-            print(f"{row['score']:>5.1f}  {row['status']:<10}  "
-                  f"{row['title'][:55]:<55}  {row['company'][:25]:<25}  {row['location'][:30]}")
+    if args.dry_run:
+        # dry-run não grava: mostra o que FOI encontrado agora, da memória
+        print(f"\n{'SCORE':>5}  {'TÍTULO':<55}  {'EMPRESA':<25}  LOCAL")
+        for job, score in sorted(report.preview, key=lambda p: p[1], reverse=True):
+            print(f"{score:>5.1f}  {job.title[:55]:<55}  "
+                  f"{job.company[:25]:<25}  {job.location[:30]}")
+    else:
+        rows = storage.list_jobs(min_score=args.min_score, limit=args.limit)
+        if rows:
+            print(f"\n{'SCORE':>5}  {'STATUS':<10}  {'TÍTULO':<55}  {'EMPRESA':<25}  LOCAL")
+            for row in rows:
+                print(f"{row['score']:>5.1f}  {row['status']:<10}  "
+                      f"{row['title'][:55]:<55}  {row['company'][:25]:<25}  {row['location'][:30]}")
     storage.close()
     return 1 if report.errors else 0
+
+
+def cmd_rescore(config: Config, args: argparse.Namespace) -> int:
+    """Reaplica o scoring atual sobre as vagas já salvas (sem rede)."""
+    from datetime import datetime
+
+    from .models import Job
+    from .scoring import Scorer
+
+    storage = _storage(config)
+    scorer = Scorer(config.profile, config.scoring)
+    rows = storage.list_jobs(limit=100000)
+    changed = above = 0
+    for row in rows:
+        posted = datetime.fromisoformat(row["posted_at"]) if row["posted_at"] else None
+        job = Job(source=row["source"], external_id=row["external_id"],
+                  title=row["title"], company=row["company"],
+                  location=row["location"], url=row["url"],
+                  description=row["description"] or "", posted_at=posted)
+        score, details = scorer.score(job)
+        if abs(score - row["score"]) >= 0.05:
+            storage.update_score(row["uid"], score, details)
+            changed += 1
+        if score >= config.scoring.threshold:
+            above += 1
+    print(f"{len(rows)} vagas reavaliadas, {changed} scores alterados, "
+          f"{above} acima do threshold ({config.scoring.threshold:.0f}).")
+    storage.close()
+    return 0
 
 
 def cmd_serve(config: Config, args: argparse.Namespace) -> int:
@@ -120,6 +156,8 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("daemon", help="buscas periódicas no terminal")
 
+    sub.add_parser("rescore", help="reaplica o scoring nas vagas salvas (sem rede)")
+
     p_export = sub.add_parser("export", help="exporta vagas")
     p_export.add_argument("--format", choices=["csv", "json"], default="csv")
     p_export.add_argument("--output", default="-")
@@ -129,8 +167,8 @@ def main(argv: list[str] | None = None) -> int:
                         format="%(levelname)s %(name)s: %(message)s")
     config = load_config(args.config)
 
-    commands = {"run": cmd_run, "serve": cmd_serve,
-                "daemon": cmd_daemon, "export": cmd_export}
+    commands = {"run": cmd_run, "serve": cmd_serve, "daemon": cmd_daemon,
+                "rescore": cmd_rescore, "export": cmd_export}
     return commands[args.command](config, args)
 
 

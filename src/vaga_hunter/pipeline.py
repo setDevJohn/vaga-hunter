@@ -80,6 +80,7 @@ def _run_search(config: Config, storage: Storage, sources: list[JobSource],
                     if dry_run:
                         if not storage.exists(job.uid):
                             new += 1
+                        report.preview.append((job, score))
                         continue
                     if storage.upsert_job(job, score, details):
                         new += 1

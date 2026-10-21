@@ -65,3 +65,38 @@ def test_record_and_last_run(storage):
     storage.record_run("linkedin_jobs", "react", found=10, new=3)
     run = storage.last_run()
     assert run["found"] == 10 and run["new"] == 3 and run["query"] == "react"
+
+
+def test_fingerprint_dedup_same_job_other_region(storage):
+    job_recife = Job(source="linkedin_jobs", external_id="100",
+                     title="Desenvolvedor React Frontend - Trabalho Remoto",
+                     company="BairesDev", location="Recife e Região", url="https://x/100")
+    job_salvador = Job(source="linkedin_jobs", external_id="200",
+                       title="Desenvolvedor React Frontend - Trabalho Remoto",
+                       company="BairesDev", location="Salvador e Região", url="https://x/200")
+    assert storage.upsert_job(job_recife, 80.0, {}) is True
+    # mesmo título+empresa, id diferente: duplicata — não insere nem é "nova"
+    assert storage.upsert_job(job_salvador, 80.0, {}) is False
+    assert len(storage.list_jobs()) == 1
+
+
+def test_fingerprint_migration_backfills(tmp_path):
+    import sqlite3
+    db = tmp_path / "old.db"
+    conn = sqlite3.connect(db)
+    conn.executescript("""
+        CREATE TABLE jobs (uid TEXT PRIMARY KEY, source TEXT, external_id TEXT,
+            title TEXT, company TEXT DEFAULT '', location TEXT DEFAULT '',
+            url TEXT DEFAULT '', description TEXT DEFAULT '', posted_at TEXT,
+            remote INTEGER, score REAL DEFAULT 0, score_details TEXT DEFAULT '{}',
+            status TEXT DEFAULT 'new', first_seen_at TEXT, last_seen_at TEXT);
+        INSERT INTO jobs (uid, source, external_id, title, company,
+            first_seen_at, last_seen_at)
+        VALUES ('linkedin_jobs:1', 'linkedin_jobs', '1', 'Dev X', 'Acme', 't', 't');
+    """)
+    conn.commit()
+    conn.close()
+    s = Storage(db)  # migração roda no init
+    dup = Job(source="linkedin_jobs", external_id="2", title="Dev X", company="Acme")
+    assert s.upsert_job(dup, 50.0, {}) is False  # pega dup da linha antiga
+    s.close()

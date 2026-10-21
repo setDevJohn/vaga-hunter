@@ -43,7 +43,39 @@ def test_senior_penalized(scorer):
     s_junior, _ = scorer.score(junior, now=NOW)
     s_senior, details = scorer.score(senior, now=NOW)
     assert s_senior < s_junior
-    assert details["seniority"] == 0
+    assert details["seniority"] < 0  # penalidade real, não só perda do bônus
+    assert s_senior < 50  # senior não pode chegar perto do threshold
+
+
+def test_senior_in_description_penalized(scorer):
+    """Título diz Pleno mas a descrição pede Sênior — caso real (Verity)."""
+    honest = make_job("Frontend Developer Pleno - REMOTO",
+                      "Buscamos Desenvolvedor Frontend para nosso time. React.")
+    liar = make_job("Frontend Developer Pleno - REMOTO",
+                    "Buscamos Desenvolvedor Frontend Sênior para liderar. React.")
+    s_honest, _ = scorer.score(honest, now=NOW)
+    s_liar, d_liar = scorer.score(liar, now=NOW)
+    assert s_liar < s_honest
+    assert d_liar["seniority"] < 0
+
+
+def test_years_of_experience_in_description(scorer):
+    job = make_job("Desenvolvedor Backend",
+                   "Requisitos: 6+ anos de experiência com Python.")
+    _, details = scorer.score(job, now=NOW)
+    assert details["seniority"] < 0
+
+
+def test_intern_english_hard_excluded():
+    from vaga_hunter.config import ProfileConfig, ScoringConfig
+    from vaga_hunter.scoring import Scorer
+    profile = ProfileConfig(
+        roles=["devops"],
+        exclude_keywords_hard=["estágio", "intern", "internship"])
+    scorer_en = Scorer(profile, ScoringConfig())
+    score, details = scorer_en.score(make_job("Developer DevOps Intern"), now=NOW)
+    assert score == 0
+    assert "hard_exclude" in details
 
 
 def test_estagio_hard_excluded(scorer):

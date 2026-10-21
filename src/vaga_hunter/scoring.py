@@ -24,6 +24,14 @@ ROLE_PATTERNS: dict[str, list[str]] = {
 JUNIOR_WORDS = ["junior", "júnior", "jr"]
 PLENO_WORDS = ["pleno", "mid-level", "mid level", "intermediário"]
 SENIOR_WORDS = ["senior", "sênior", "sr", "especialista", "lead", "principal", "staff"]
+# Padrões que indicam que a DESCRIÇÃO pede senioridade alta (título mente):
+# "buscamos ... sênior", "senior developer", "5+ anos de experiência" etc.
+SENIOR_DESC_RE = re.compile(
+    r"(?:buscamos|procuramos|vaga para|looking for|hiring)[^.\n]{0,60}senior"
+    r"|senior\s+(?:\w+\s+){0,2}(?:developer|engineer|desenvolvedor|dev)\b"
+    r"|(?:desenvolvedor|developer|engineer|engenheir[oa])[^.\n]{0,25}\bsenior\b"
+    r"|\b(?:[5-9]|1[0-9])\+?\s*(?:anos|years)\s+(?:de\s+)?(?:experiencia|experience)",
+)
 MOBILE_WORDS = ["mobile", "android", "ios", "flutter", "kotlin", "swift"]
 INFRA_ROLES = ("devops", "cloud", "platform")
 REMOTE_WORDS = ["remoto", "remote", "home office", "homeoffice", "anywhere"]
@@ -86,9 +94,18 @@ class Scorer:
         return 0.0
 
     def _seniority_score(self, title: str, full: str) -> float:
+        """Fator -1.25..1.0 (negativo = penalidade real, não só perda do bônus)."""
         is_junior = any(_contains(title, w) for w in JUNIOR_WORDS)
         is_pleno = any(_contains(title, w) for w in PLENO_WORDS)
         is_senior = any(_contains(title, w) for w in SENIOR_WORDS)
+
+        # Senior no título: penalidade forte — sem ela, role+remoto+recência
+        # ainda somam o suficiente pra furar o threshold de notificação.
+        if is_senior:
+            return -1.25
+        for term in self.profile.exclude_keywords_soft:
+            if _contains(title, term):
+                return -1.0
 
         # devops/cloud/platform: usuário só aceita junior
         infra = any(
@@ -97,12 +114,11 @@ class Scorer:
         if infra and not is_junior:
             return 0.2
 
-        if is_senior:
-            return 0.0
-        # Penalidade soft por termos configurados (ex.: "especialista") no título
-        for term in self.profile.exclude_keywords_soft:
-            if _contains(title, term):
-                return 0.0
+        # Título ok, mas a descrição pede senior ("título mente"):
+        if SENIOR_DESC_RE.search(full):
+            if is_junior:
+                return 0.2   # contraditório — fica neutro-baixo
+            return -0.5      # pleno/sem marcação + descrição senior: penaliza
 
         if is_junior or is_pleno:
             return 1.0

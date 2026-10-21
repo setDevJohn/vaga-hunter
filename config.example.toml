@@ -18,13 +18,13 @@ max_pages_per_query = 3    # 25 vagas/página — mantenha baixo
 roles = ["fullstack", "frontend", "backend", "react native", "devops", "cloud", "platform"]
 seniority = ["junior", "pleno"]
 # Zeram o score (hard):
-exclude_keywords_hard = ["estágio", "estagiário", "trainee"]
+exclude_keywords_hard = ["estágio", "estagiário", "trainee", "intern", "internship"]
 # Penalizam (soft):
 exclude_keywords_soft = ["senior", "sênior", "sr.", "especialista", "lead", "principal"]
 include_keywords = ["react", "typescript", "node", "python", "javascript", "aws", "docker"]
 
 [scoring]
-threshold = 60             # só notifica vagas com score >= threshold
+threshold = 70             # só notifica vagas com score >= threshold
 
 [scoring.weights]
 role_match = 30
