@@ -1,0 +1,25 @@
+# Ambientes virtuais
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.coverage
+
+# Dados locais / segredos
+*.db
+*.db-wal
+*.db-shm
+.env
+cookies*.json
+config.local.toml
+
+# IDE
+.idea/
+.vscode/
