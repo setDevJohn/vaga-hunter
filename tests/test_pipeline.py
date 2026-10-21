@@ -121,3 +121,17 @@ def test_posts_source_uses_own_queries(env):
     run_search(config, storage, [jobs_src, posts_src], scorer, [])
     assert jobs_src.seen_queries == ["query de vagas"]
     assert posts_src.seen_queries == ["query de posts"]
+
+
+def test_cancel_stops_search(env):
+    config, storage, scorer = env
+    jobs = [_job(str(i), f"Dev Fullstack {i}") for i in range(10)]
+    stop_after = {"count": 0}
+
+    def should_stop():
+        stop_after["count"] += 1
+        return stop_after["count"] > 3  # cancela no meio
+
+    report = run_search(config, storage, [FakeSource(jobs)], scorer, [],
+                        should_stop=should_stop)
+    assert report.found < 10

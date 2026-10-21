@@ -56,28 +56,41 @@ def build_filters(config: Config, source: JobSource | None = None) -> list[Searc
 
 def run_search(config: Config, storage: Storage, sources: list[JobSource],
                scorer: Scorer, notifiers: list, *, dry_run: bool = False,
-               progress: ProgressFn = lambda msg: None) -> RunReport:
+               progress: ProgressFn = lambda msg: None,
+               should_stop: Callable[[], bool] = lambda: False) -> RunReport:
     with _RUN_LOCK:
         return _run_search(config, storage, sources, scorer, notifiers,
-                           dry_run=dry_run, progress=progress)
+                           dry_run=dry_run, progress=progress,
+                           should_stop=should_stop)
 
 
 def _run_search(config: Config, storage: Storage, sources: list[JobSource],
                 scorer: Scorer, notifiers: list, *, dry_run: bool,
-                progress: ProgressFn) -> RunReport:
+                progress: ProgressFn, should_stop: Callable[[], bool]) -> RunReport:
     report = RunReport()
+    cancelled = False
 
     for source in sources:
+        if cancelled:
+            break
         if storage.in_cooldown(source.name):
             progress(f"[{source.name}] em cooldown — pulando")
             continue
         for filters in build_filters(config, source):
+            if should_stop():
+                cancelled = True
+                progress("Busca cancelada.")
+                break
             progress(f"[{source.name}] buscando: {filters.keywords}")
             found = new = 0
             error: str | None = None
             blocked = False
             try:
                 for job in source.search(filters):
+                    if should_stop():
+                        cancelled = True
+                        progress("Busca cancelada.")
+                        break
                     found += 1
                     score, details = scorer.score(job)
                     if dry_run:

@@ -158,3 +158,20 @@ def test_posts_prepare_rejected_when_disabled(client):
     test_client, _ = client
     resp = test_client.post("/api/posts/prepare")
     assert resp.status_code == 400
+
+
+def test_cancel_without_running_search(client):
+    test_client, _ = client
+    resp = test_client.post("/api/search/cancel")
+    assert resp.status_code == 409
+
+
+def test_config_includes_posts_queries(client):
+    test_client, _ = client
+    cfg = test_client.get("/api/config").get_json()
+    assert "posts_queries" in cfg and "posts_enabled" in cfg
+    resp = test_client.post("/api/config", json={
+        "queries": ["x"], "posts_queries": ["vaga react", " "]})
+    assert resp.status_code == 200
+    cfg2 = test_client.get("/api/config").get_json()
+    assert cfg2["posts_queries"] == ["vaga react"]

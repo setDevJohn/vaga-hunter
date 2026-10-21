@@ -33,6 +33,7 @@
       <span class="spinner" aria-hidden="true"></span>
       <span class="btn-label">Buscar agora</span>
     </button>
+    <button id="btn-cancel" class="btn hidden">Cancelar</button>
   </div>
 </header>
 
@@ -78,6 +79,9 @@
   <div class="params-grid">
     <label class="full">Buscas (uma por linha)
       <textarea id="cfg-queries" rows="5" spellcheck="false"></textarea>
+    </label>
+    <label class="full" id="cfg-posts-wrap">Buscas em POSTS (uma por linha; vazio = usa as de cima)
+      <textarea id="cfg-posts-queries" rows="3" spellcheck="false"></textarea>
     </label>
     <label>Localização <input type="text" id="cfg-location"></label>
     <label>Período

@@ -262,6 +262,7 @@ function renderStatus(data) {
   btn.disabled = search.running;
   btn.classList.toggle("loading", search.running);
   btn.querySelector(".btn-label").textContent = search.running ? "Buscando…" : "Buscar agora";
+  $("#btn-cancel").classList.toggle("hidden", !search.running);
 
   const logCard = $("#log-card");
   if (search.messages.length) {
@@ -296,6 +297,8 @@ async function loadConfig() {
   const cfg = await api("/api/config");
   $("#cfg-queries").value = cfg.queries.join("\n");
   $("#cfg-location").value = cfg.location;
+  $("#cfg-posts-queries").value = (cfg.posts_queries || []).join("\n");
+  $("#cfg-posts-wrap").classList.toggle("hidden", !cfg.posts_enabled);
   const timeSel = $("#cfg-time-range");
   if (![...timeSel.options].some((o) => o.value === cfg.time_range)) {
     timeSel.add(new Option(cfg.time_range, cfg.time_range));  // valor custom do config.toml
@@ -313,6 +316,13 @@ $("#btn-search").addEventListener("click", async () => {
     await api("/api/search", { method: "POST" });
   } catch { return; }
   if (!state.searchPolling) state.searchPolling = setInterval(() => refreshStatus(), 1000);
+  refreshStatus(true);
+});
+
+$("#btn-cancel").addEventListener("click", async () => {
+  $("#btn-cancel").disabled = true;
+  try { await api("/api/search/cancel", { method: "POST" }); } catch {}
+  $("#btn-cancel").disabled = false;
   refreshStatus(true);
 });
 
@@ -396,6 +406,7 @@ $("#btn-save-config").addEventListener("click", async () => {
     method: "POST",
     body: JSON.stringify({
       queries: $("#cfg-queries").value.split("\n"),
+      posts_queries: $("#cfg-posts-queries").value.split("\n"),
       location: $("#cfg-location").value,
       time_range: $("#cfg-time-range").value,
       remote: $("#cfg-remote").value,

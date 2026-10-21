@@ -90,3 +90,34 @@ def test_stop_does_not_cancel_new_generation(tmp_path):
     assert not controller._stop.is_set()
     controller.stop()
     storage.close()
+
+
+def test_daemon_skips_auth_sources(tmp_path, monkeypatch):
+    """Daemon nunca roda fontes autenticadas (posts)."""
+    from vaga_hunter import daemon as daemon_mod
+    from vaga_hunter.sources.base import JobSource
+
+    class FakeAuth(JobSource):
+        name = "linkedin_posts"
+        requires_auth = True
+        def search(self, filters): return iter([])
+
+    class FakePublic(JobSource):
+        name = "linkedin_jobs"
+        requires_auth = False
+        def search(self, filters): return iter([])
+
+    used = []
+    monkeypatch.setattr(daemon_mod, "build_sources",
+                        lambda c, s: [FakePublic(), FakeAuth()])
+    monkeypatch.setattr(daemon_mod, "run_search",
+                        lambda c, s, sources, *a, **k: used.extend(
+                            src.name for src in sources))
+    config = Config()
+    config.notify.telegram = False
+    config.notify.desktop = False
+    storage = Storage(tmp_path / "a.db")
+    controller = DaemonController(config, storage)
+    controller.run_once()
+    assert used == ["linkedin_jobs"]
+    storage.close()

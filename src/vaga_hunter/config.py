@@ -137,6 +137,9 @@ def save_search_params(cfg: Config) -> bool:
     search["max_pages_per_query"] = cfg.search.max_pages_per_query
     scoring = doc.setdefault("scoring", tomlkit.table())
     scoring["threshold"] = cfg.scoring.threshold
+    sources = doc.setdefault("sources", tomlkit.table())
+    posts = sources.setdefault("posts", tomlkit.table())
+    posts["queries"] = cfg.sources.posts.queries
     cfg.config_path.write_text(tomlkit.dumps(doc))
     return True
 

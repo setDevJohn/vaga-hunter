@@ -64,7 +64,10 @@ class DaemonController:
 
     def _default_run(self) -> object:
         from .notify import build_notifiers
-        sources = build_sources(self.config, self.storage)
+        # Daemon NUNCA usa fontes autenticadas (posts): rodam só em busca
+        # manual, com o usuário presente — proteção da conta.
+        sources = [s for s in build_sources(self.config, self.storage)
+                   if not s.requires_auth]
         scorer = Scorer(self.config.profile, self.config.scoring)
         notifiers = build_notifiers(self.config)
         return run_search(self.config, self.storage, sources, scorer, notifiers,

@@ -31,6 +31,7 @@ class SearchState:
     def __init__(self):
         self.lock = threading.Lock()
         self.running = False
+        self.cancel = threading.Event()
         self.messages: list[str] = []
         self.report: dict | None = None
 
@@ -55,7 +56,8 @@ def create_app(config: Config, storage: Storage | None = None,
             scorer = Scorer(config.profile, config.scoring)
             notifiers = build_notifiers(config)
             report = run_search(config, storage, sources, scorer, notifiers,
-                                progress=state.log)
+                                progress=state.log,
+                                should_stop=state.cancel.is_set)
             state.report = {"found": report.found, "new": report.new,
                             "notified": report.notified, "errors": report.errors}
             state.log(f"Concluído: {report.found} vagas, {report.new} novas, "
@@ -84,9 +86,18 @@ def create_app(config: Config, storage: Storage | None = None,
             if state.running:
                 return jsonify({"ok": False, "error": "busca já em andamento"}), 409
             state.running = True
+            state.cancel.clear()
             state.messages = []
             state.report = None
         threading.Thread(target=_manual_search, daemon=True).start()
+        return jsonify({"ok": True})
+
+    @app.post("/api/search/cancel")
+    def api_search_cancel():
+        if not state.running:
+            return jsonify({"ok": False, "error": "nenhuma busca em andamento"}), 409
+        state.cancel.set()
+        state.log("Cancelamento solicitado — parando após a requisição atual…")
         return jsonify({"ok": True})
 
     def _cdp_ok() -> bool:
@@ -189,6 +200,8 @@ def create_app(config: Config, storage: Storage | None = None,
             "remote": config.search.remote or "",
             "max_pages_per_query": config.search.max_pages_per_query,
             "threshold": config.scoring.threshold,
+            "posts_enabled": config.sources.linkedin_posts,
+            "posts_queries": config.sources.posts.queries,
         })
 
     @app.post("/api/config")
@@ -223,6 +236,9 @@ def create_app(config: Config, storage: Storage | None = None,
         config.search.remote = remote or None
         config.search.max_pages_per_query = max_pages
         config.scoring.threshold = threshold
+        if "posts_queries" in data:
+            config.sources.posts.queries = [
+                q.strip() for q in data.get("posts_queries", []) if str(q).strip()]
         saved = save_search_params(config)  # vale na hora; persiste se há config.toml
         return jsonify({"ok": True, "saved_to_file": saved})
 
