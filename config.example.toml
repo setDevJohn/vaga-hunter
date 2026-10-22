@@ -44,6 +44,16 @@ linkedin_posts = false     # requer sessão logada — risco baixo mas NÃO zero
 enabled = false
 queries = ["desenvolvedor", "front end", "full stack", "back end", "react", "node"]
 
+[sources.gupy]
+# Portal Gupy: maior ATS do Brasil, listagem JSON ordenada por data (sem login).
+enabled = false
+queries = ["desenvolvedor", "desenvolvedor frontend", "desenvolvedor backend"]
+
+[sources.remotar]
+# Remotar: vagas 100% remotas do Brasil, API pública ordenada por data (sem login).
+enabled = false
+queries = ["desenvolvedor", "frontend", "backend", "react"]
+
 [sources.posts]
 mode = "disabled"          # disabled | browser (Chrome real via CDP)
 cdp_url = "http://127.0.0.1:9222"

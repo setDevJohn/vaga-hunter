@@ -100,9 +100,25 @@ max_pages = 2
 
 [sources.trampos]
 # Queries casam com palavras do slug da vaga no sitemap (busca barata: 1 request + detalhes)
-enabled = true
+enabled = false
 queries = ["desenvolvedor", "front end", "frontend", "full stack", "back end", "react", "node"]
 location = ""
 time_range = "r1m"
 remote = ""
 max_pages = 5
+
+[sources.gupy]
+enabled = true
+queries = ["desenvolvedor", "desenvolvedor frontend", "desenvolvedor backend", "react"]
+location = ""
+time_range = "r24h"
+remote = ""
+max_pages = 3
+
+[sources.remotar]
+enabled = true
+queries = ["desenvolvedor", "frontend", "backend", "react", "node"]
+location = ""
+time_range = "r24h"
+remote = ""
+max_pages = 2

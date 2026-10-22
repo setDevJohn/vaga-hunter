@@ -53,6 +53,14 @@ def build_sources(config: Config, storage: Storage) -> list[JobSource]:
         from .sources.trampos import TramposSource
         sources.append(TramposSource(_polite_session(config),
                                      skip_detail=storage.exists))
+    if config.sources.gupy.enabled:
+        from .sources.gupy import GupySource
+        sources.append(GupySource(_polite_session(config),
+                                  skip_detail=storage.exists))
+    if config.sources.remotar.enabled:
+        from .sources.remotar import RemotarSource
+        sources.append(RemotarSource(_polite_session(config),
+                                     skip_detail=storage.exists))
     if config.sources.linkedin_posts.enabled and config.sources.posts.mode == "browser":
         from .sources.linkedin_posts import LinkedInPostsSource
         sources.append(LinkedInPostsSource(config.sources.posts))

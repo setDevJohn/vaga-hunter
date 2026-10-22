@@ -169,8 +169,8 @@ def test_cancel_without_running_search(client):
 def test_config_per_source(client):
     test_client, _ = client
     cfg = test_client.get("/api/config").get_json()
-    assert set(cfg["sources"]) == {"linkedin_jobs", "linkedin_posts", "infojobs",
-                                   "catho", "programathor", "trampos"}
+    from vaga_hunter.config import SOURCE_NAMES
+    assert set(cfg["sources"]) == set(SOURCE_NAMES)
     resp = test_client.post("/api/config", json={
         "queries": ["x"],
         "sources": {"linkedin_posts": {

@@ -93,8 +93,25 @@
       <button class="nav-item" data-page="catho" role="tab" aria-selected="false">Catho</button>
       <button class="nav-item" data-page="programathor" role="tab" aria-selected="false">Programathor</button>
       <button class="nav-item" data-page="trampos" role="tab" aria-selected="false">Trampos.co</button>
+      <button class="nav-item" data-page="gupy" role="tab" aria-selected="false">Gupy</button>
+      <button class="nav-item" data-page="remotar" role="tab" aria-selected="false">Remotar</button>
+      <button class="nav-item" data-page="descartadas" role="tab" aria-selected="false">Descartadas</button>
     </nav>
     <div class="settings-body">
+      <section class="settings-page" data-page="descartadas">
+        <p>Sites já analisados que <strong>não</strong> serão implementados (ou foram removidos):</p>
+        <ul class="discarded-list">
+          <li><strong>Indeed</strong> — analisado, não implementado: Cloudflare bloqueia qualquer
+            cliente HTTP; só funcionaria com navegador real (CDP).</li>
+          <li><strong>Vagas.com.br</strong> — implementado e removido (out/2026): resultados
+            irrelevantes (landing pages no lugar de vagas) e rate-limit 429 agressivo.</li>
+          <li><strong>Empregos.com.br</strong> (Solides) — implementado e removido (out/2026):
+            WAF GoCache bloqueia por reputação de IP com desafio reCAPTCHA; paginação e
+            ordenação já eram bloqueadas, depois o site inteiro. Inviável sem navegador real.</li>
+        </ul>
+        <p>Critério: antes de implementar uma fonte, verificar WAF e tolerância de requisições;
+          a listagem precisa ser ordenável por data (mais recentes primeiro). Sem isso, fora.</p>
+      </section>
       <section class="settings-page" data-page="geral">
         <div class="params-grid">
           <label class="full">Buscas padrão (uma por linha)

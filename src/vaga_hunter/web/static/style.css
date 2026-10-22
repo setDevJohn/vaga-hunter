@@ -334,3 +334,6 @@ dialog h2 { margin: 0 0 var(--sp-4); font-size: var(--fs-lg); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+.discarded-list { padding-left: 1.2em; display: grid; gap: .6em; }
+.settings-page[data-page="descartadas"] p { color: var(--muted, #888); font-size: .9em; }
