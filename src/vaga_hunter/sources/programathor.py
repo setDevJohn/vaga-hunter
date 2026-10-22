@@ -13,6 +13,8 @@ from collections.abc import Callable, Iterator
 
 from bs4 import BeautifulSoup
 
+from .vagas_com_br import _fold
+
 from ..http_client import PoliteSession
 from ..models import Job, SearchFilters
 from .base import JobSource
@@ -64,7 +66,7 @@ def parse_search_page(html: str) -> list[Job]:
             elif "fa-file-alt" in icon_classes:
                 contract = text
 
-        if level and level.lower() not in title.lower():
+        if level and _fold(level) not in _fold(title):
             title = f"{title} ({level})"  # nível explícito ajuda o scoring
 
         tags = [t.get_text(strip=True) for t in card.select(".tag-list")]

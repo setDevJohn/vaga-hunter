@@ -63,3 +63,16 @@ def test_search_stops_when_page_only_repeats():
     jobs = list(source.search(SearchFilters(keywords="x", max_pages=5)))
     assert len(jobs) == 1
     assert len(calls) == 2  # página 2 só repete -> para
+
+
+def test_jsonld_robustness():
+    from vaga_hunter.sources._jsonld import extract_jobposting, jobposting_description
+    # description não-string não explode
+    assert jobposting_description(
+        '<script type="application/ld+json">{"@type":"JobPosting","description":123}</script>'
+    ) == "123"
+    # @graph e @type em lista
+    graph = ('<script type="application/ld+json">{"@graph":[{"@type":["JobPosting"],'
+             '"title":"X","description":"corpo da vaga"}]}</script>')
+    assert extract_jobposting(graph).get("title") == "X"
+    assert jobposting_description(graph) == "corpo da vaga"

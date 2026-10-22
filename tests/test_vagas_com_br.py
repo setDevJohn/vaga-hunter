@@ -86,3 +86,12 @@ def test_search_dedups_page_overlap_and_stops_on_stale():
     assert [j.external_id for j in jobs] == ["1", "2"]
     # p2 só tinha 1 não-visto e ele era velho -> stale == unseen -> para
     assert len(calls) == 2
+
+
+def test_level_injection_accent_insensitive():
+    html = '''<html><li class="vaga">
+      <a class="link-detalhes-vaga" data-id-vaga="9" href="/vagas/v9/dev">Dev SENIOR</a>
+      <span class="nivelVaga">Sênior</span>
+    </li></html>'''
+    jobs = parse_search_page(html)
+    assert jobs[0].title == "Dev SENIOR"  # não duplica "(Sênior)"

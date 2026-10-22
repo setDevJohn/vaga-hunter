@@ -6,6 +6,15 @@ import json
 from bs4 import BeautifulSoup
 
 
+def _is_jobposting(item: object) -> bool:
+    if not isinstance(item, dict):
+        return False
+    type_value = item.get("@type")
+    if isinstance(type_value, list):
+        return "JobPosting" in type_value
+    return type_value == "JobPosting"
+
+
 def extract_jobposting(html: str) -> dict:
     """Retorna o dict do JobPosting (schema.org) ou {}."""
     soup = BeautifulSoup(html, "lxml")
@@ -15,8 +24,14 @@ def extract_jobposting(html: str) -> dict:
         except (ValueError, TypeError):
             continue
         items = data if isinstance(data, list) else [data]
+        # alguns sites embrulham em @graph
+        expanded = []
         for item in items:
-            if isinstance(item, dict) and item.get("@type") == "JobPosting":
+            if isinstance(item, dict) and isinstance(item.get("@graph"), list):
+                expanded.extend(item["@graph"])
+            expanded.append(item)
+        for item in expanded:
+            if _is_jobposting(item):
                 return item
     return {}
 
@@ -26,4 +41,4 @@ def jobposting_description(html: str) -> str:
     description = extract_jobposting(html).get("description", "")
     if not description:
         return ""
-    return BeautifulSoup(description, "lxml").get_text(" ", strip=True)
+    return BeautifulSoup(str(description), "lxml").get_text(" ", strip=True)

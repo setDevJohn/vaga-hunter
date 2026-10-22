@@ -26,10 +26,14 @@ BASE_URL = "https://www.vagas.com.br"
 _BRT = timezone(timedelta(hours=-3))
 
 
+def _fold(text: str) -> str:
+    """minúsculas + sem acentos, p/ comparações ('Sênior' ~ 'SENIOR')."""
+    text = unicodedata.normalize("NFKD", text.lower())
+    return "".join(c for c in text if not unicodedata.combining(c))
+
+
 def query_slug(keywords: str) -> str:
-    text = unicodedata.normalize("NFKD", keywords.lower())
-    text = "".join(c for c in text if not unicodedata.combining(c))
-    return re.sub(r"[^a-z0-9]+", "-", text).strip("-") or "ti"
+    return re.sub(r"[^a-z0-9]+", "-", _fold(keywords)).strip("-") or "ti"
 
 
 def build_url(filters: SearchFilters, page: int = 1) -> str:
@@ -80,7 +84,7 @@ def parse_search_page(html: str, now: datetime | None = None) -> list[Job]:
             level = level_el.get_text(strip=True)
             # nível explícito do site vai pro título: o scoring de senioridade
             # lê o título, e muitos títulos daqui não trazem o nível
-            if level and level.lower() not in title.lower():
+            if level and _fold(level) not in _fold(title):
                 title = f"{title} ({level})"
 
         company_el = card.select_one(".emprVaga")
