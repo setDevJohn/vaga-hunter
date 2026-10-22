@@ -37,7 +37,7 @@ max_requests_per_run = 8
 queries = ["(dev OR desenvolvedor AND Fullstack OR Frontend)"]
 
 [sources.linkedin_jobs]
-enabled = false
+enabled = true
 queries = []
 location = ""
 time_range = ""
@@ -53,12 +53,13 @@ remote = ""
 max_pages = 0
 
 [sources.infojobs]
-enabled = false
+enabled = true
 queries = ["desenvolvedor", "programador", "desenvolvedor web"]
 location = ""
 time_range = "r7d"
 remote = "any"
 max_pages = 5
+
 [http]
 min_delay = 2.0
 max_delay = 6.0
@@ -81,7 +82,7 @@ desktop = true
 db_path = "vaga_hunter.db"
 
 [sources.catho]
-enabled = false
+enabled = true
 queries = ["desenvolvedor", "programador", "desenvolvedor web"]
 location = ""
 time_range = "r3d"
@@ -96,3 +97,12 @@ location = ""
 time_range = ""
 remote = ""
 max_pages = 2
+
+[sources.trampos]
+# Queries casam com palavras do slug da vaga no sitemap (busca barata: 1 request + detalhes)
+enabled = true
+queries = ["desenvolvedor", "front end", "full stack", "back end", "react", "node"]
+location = ""
+time_range = "r3d"
+remote = ""
+max_pages = 0
