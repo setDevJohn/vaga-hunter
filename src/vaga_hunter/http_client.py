@@ -36,12 +36,13 @@ class PoliteSession:
 
     def __init__(self, min_delay: float = 2.0, max_delay: float = 6.0,
                  max_retries: int = 3, breaker_threshold: int = 3,
-                 timeout: float = 20.0):
+                 timeout: float = 20.0, block_status: set[int] | None = None):
         self.min_delay = min_delay
         self.max_delay = max_delay
         self.max_retries = max_retries
         self.breaker_threshold = breaker_threshold
         self.timeout = timeout
+        self.block_status = block_status or BLOCK_STATUS
         self._block_streak = 0
         self._session = requests.Session()
         self._session.headers.update({
@@ -68,7 +69,7 @@ class PoliteSession:
                 last_error = exc
                 continue
 
-            if resp.status_code in BLOCK_STATUS:
+            if resp.status_code in self.block_status:
                 self._block_streak += 1
                 log.warning("resposta %d (streak=%d): %s",
                             resp.status_code, self._block_streak, url)
