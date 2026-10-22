@@ -118,29 +118,41 @@ class TestGupySource:
         # página 2 não deve ser buscada: página 1 já não estava toda na janela?
         # (1 fresh + 1 stale -> continua; página 2 toda stale -> para)
 
-    def test_renova_build_id_quando_rota_falha(self):
+    def test_renova_build_id_quando_rota_da_404(self):
+        # o portal responde HTTP 404 para buildId velho: PoliteSession levanta
+        # requests.HTTPError e a fonte deve renovar o buildId e repetir
+        import requests
+
         now = datetime.now(timezone.utc).isoformat()
 
         class Session:
             def __init__(self):
                 self.calls = []
-                self.build = "velho"
 
             def get(self, url, params=None):
                 self.calls.append(url)
                 if "_next/data/velho" in url:
-                    return SimpleNamespace(text="<html>404</html>")
+                    raise requests.HTTPError("falha após 4 tentativas: " + url)
                 if "_next/data/novo" in url:
                     return SimpleNamespace(text=_payload([_job(1, now)], 1))
-                # página HTML: na 2ª extração devolve buildId novo
-                self.build = "novo" if self.build == "velho" else self.build
-                return SimpleNamespace(text=f'{{"buildId":"{self.build}"}}')
+                return SimpleNamespace(text='{"buildId":"novo"}')
 
         source = GupySource(Session())
         source._build_id = "velho"
         jobs = list(source.search(SearchFilters(keywords="dev", time_range="r24h",
                                                 max_pages=1)))
         assert [j.external_id for j in jobs] == ["1"]
+
+    def test_vaga_fora_da_janela_nao_queima_dedup(self):
+        now = datetime.now(timezone.utc)
+        old = (now - timedelta(days=2)).isoformat()
+        pages = {1: _payload([_job(1, old)], 1)}
+        source = GupySource(FakeSession(pages, '{"buildId":"b"}'))
+        short = list(source.search(SearchFilters(keywords="dev", time_range="r24h",
+                                                 max_pages=1)))
+        wide = list(source.search(SearchFilters(keywords="dev", time_range="r7d",
+                                                max_pages=1)))
+        assert short == [] and [j.external_id for j in wide] == ["1"]
 
     def test_dedup_entre_queries(self):
         now = datetime.now(timezone.utc).isoformat()

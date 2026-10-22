@@ -100,11 +100,12 @@ class RemotarSource(JobSource):
             for job in jobs:
                 if job.uid in self._yielded:
                     continue
-                self._yielded.add(job.uid)
                 unseen += 1
                 if job.posted_at is not None and job.posted_at < cutoff:
                     stale += 1
-                    continue
+                    continue  # fora da janela: não marca, outra query com
+                              # janela maior ainda pode entregá-la
+                self._yielded.add(job.uid)
                 yield job
             # API ordena por createdAt desc: página inteira fora da janela encerra
             if unseen == 0 or stale == unseen:

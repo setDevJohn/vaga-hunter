@@ -16,6 +16,7 @@ from collections.abc import Callable, Iterator
 from datetime import datetime, timezone
 from urllib.parse import quote
 
+import requests
 from bs4 import BeautifulSoup
 
 from ..http_client import PoliteSession
@@ -107,11 +108,11 @@ class GupySource(JobSource):
     def _fetch_page(self, keywords: str, page: int) -> tuple[list[Job], int]:
         if self._build_id is None:
             self._build_id = self._fetch_build_id()
-        resp = self.session.get(search_page_url(self._build_id, keywords, page))
         try:
+            resp = self.session.get(search_page_url(self._build_id, keywords, page))
             return parse_search_json(resp.text)
-        except (ValueError, KeyError):
-            # buildId velho (deploy novo do portal): re-extrai uma vez
+        except (ValueError, KeyError, requests.HTTPError):
+            # buildId velho (deploy novo do portal responde 404): re-extrai uma vez
             log.info("Gupy: rota _next/data falhou — renovando buildId")
             self._build_id = self._fetch_build_id()
             resp = self.session.get(search_page_url(self._build_id, keywords, page))
@@ -127,11 +128,12 @@ class GupySource(JobSource):
             for job in jobs:
                 if job.uid in self._yielded:
                     continue
-                self._yielded.add(job.uid)
                 unseen += 1
                 if job.posted_at is not None and job.posted_at < cutoff:
                     stale += 1
-                    continue
+                    continue  # fora da janela: não marca, outra query com
+                              # janela maior ainda pode entregá-la
+                self._yielded.add(job.uid)
                 yield job
             # listagem vem ordenada por publishedDate desc: página com tudo
             # fora da janela encerra a query

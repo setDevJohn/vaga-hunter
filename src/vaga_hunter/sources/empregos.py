@@ -176,8 +176,10 @@ class EmpregosSource(JobSource):
         for job in jobs:
             if job.uid in self._yielded:
                 continue
-            self._yielded.add(job.uid)
-            # listagem não é ordenada por data: filtra sem encerrar cedo
+            # listagem não é ordenada por data: filtra sem encerrar cedo;
+            # vaga fora da janela não marca o dedup (outra query com janela
+            # maior ainda pode entregá-la)
             if job.posted_at is not None and job.posted_at < cutoff:
                 continue
+            self._yielded.add(job.uid)
             yield job
