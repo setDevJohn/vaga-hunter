@@ -132,7 +132,7 @@ function jobCard(job) {
   const isNew = status === "new";
   const badges = [];
   const SOURCE_PT = { linkedin_jobs: "LinkedIn", linkedin_posts: "LinkedIn · post",
-                      infojobs: "InfoJobs", catho: "Catho", vagas_com_br: "Vagas.com",
+                      infojobs: "InfoJobs", catho: "Catho",
                       programathor: "Programathor" };
   badges.push(`<span class="badge outline source">${esc(SOURCE_PT[job.source] || job.source)}</span>`);
   const MODALITY_PT = { remote: "🏠 remoto", hybrid: "🔄 híbrido", onsite: "🏢 presencial" };
@@ -365,7 +365,6 @@ const SOURCE_PAGES = {
   linkedin_posts: "LinkedIn Posts",
   infojobs: "InfoJobs",
   catho: "Catho",
-  vagas_com_br: "Vagas.com.br",
   programathor: "Programathor",
 };
 

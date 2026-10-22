@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterator
 
 from bs4 import BeautifulSoup
 
-from .vagas_com_br import _fold
+from ..scoring import _normalize as _fold
 
 from ..http_client import PoliteSession
 from ..models import Job, SearchFilters

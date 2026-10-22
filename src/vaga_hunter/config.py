@@ -54,7 +54,7 @@ class SourceSettings:
 
 
 SOURCE_NAMES = ("linkedin_jobs", "linkedin_posts", "infojobs", "catho",
-                "vagas_com_br", "programathor")
+                "programathor")
 
 
 @dataclass
@@ -64,7 +64,6 @@ class SourcesConfig:
     linkedin_posts: SourceSettings = field(default_factory=SourceSettings)
     infojobs: SourceSettings = field(default_factory=SourceSettings)
     catho: SourceSettings = field(default_factory=SourceSettings)
-    vagas_com_br: SourceSettings = field(default_factory=SourceSettings)
     programathor: SourceSettings = field(default_factory=SourceSettings)
     posts: PostsConfig = field(default_factory=PostsConfig)
 
