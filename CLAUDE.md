@@ -65,6 +65,7 @@ login (exceto LinkedIn posts via CDP, opcional e desligado por padrão).
 | Trampos.co | nginx | sitemap público, sem bloqueio |
 | Gupy | CloudFront | sem desafio; buildId renovado em 404 de deploy |
 | Remotar | — | API aberta; param é `search` ("q" é ignorado) |
+| GeekHunter | Cloudflare | sem desafio (tolerou burst no recon); 403 = breaker imediato |
 
 ## Fontes analisadas e DESCARTADAS (não reimplementar sem o usuário pedir)
 

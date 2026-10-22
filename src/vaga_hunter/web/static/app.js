@@ -134,7 +134,8 @@ function jobCard(job) {
   const SOURCE_PT = { linkedin_jobs: "LinkedIn", linkedin_posts: "LinkedIn · post",
                       infojobs: "InfoJobs", catho: "Catho",
                       programathor: "Programathor", trampos: "Trampos.co",
-                      gupy: "Gupy", remotar: "Remotar" };
+                      gupy: "Gupy", remotar: "Remotar",
+                      geekhunter: "GeekHunter" };
   badges.push(`<span class="badge outline source">${esc(SOURCE_PT[job.source] || job.source)}</span>`);
   const MODALITY_PT = { remote: "🏠 remoto", hybrid: "🔄 híbrido", onsite: "🏢 presencial" };
   if (job.modality) badges.push(`<span class="badge outline modality-${esc(job.modality)}">${MODALITY_PT[job.modality]}</span>`);
@@ -370,6 +371,7 @@ const SOURCE_PAGES = {
   trampos: "Trampos.co",
   gupy: "Gupy",
   remotar: "Remotar",
+  geekhunter: "GeekHunter",
 };
 
 function fillTimeSelect(select, value, inheritLabel = null) {

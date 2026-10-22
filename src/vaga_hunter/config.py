@@ -54,7 +54,7 @@ class SourceSettings:
 
 
 SOURCE_NAMES = ("linkedin_jobs", "linkedin_posts", "infojobs", "catho",
-                "programathor", "trampos", "gupy", "remotar")
+                "programathor", "trampos", "gupy", "remotar", "geekhunter")
 
 
 @dataclass
@@ -68,6 +68,7 @@ class SourcesConfig:
     trampos: SourceSettings = field(default_factory=SourceSettings)
     gupy: SourceSettings = field(default_factory=SourceSettings)
     remotar: SourceSettings = field(default_factory=SourceSettings)
+    geekhunter: SourceSettings = field(default_factory=SourceSettings)
     posts: PostsConfig = field(default_factory=PostsConfig)
 
     def get(self, name: str) -> SourceSettings:
