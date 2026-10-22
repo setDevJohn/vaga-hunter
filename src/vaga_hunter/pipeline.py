@@ -53,6 +53,26 @@ def build_sources(config: Config, storage: Storage) -> list[JobSource]:
         from .sources.trampos import TramposSource
         sources.append(TramposSource(_polite_session(config),
                                      skip_detail=storage.exists))
+    if config.sources.gupy.enabled:
+        from .sources.gupy import GupySource
+        sources.append(GupySource(_polite_session(config),
+                                  skip_detail=storage.exists))
+    if config.sources.remotar.enabled:
+        from .sources.remotar import RemotarSource
+        sources.append(RemotarSource(_polite_session(config),
+                                     skip_detail=storage.exists))
+    if config.sources.empregos.enabled:
+        from .sources.empregos import BLOCK_STATUS as EMPREGOS_BLOCK
+        from .sources.empregos import EmpregosSource
+        # WAF sensível: delays dobrados e 403 conta como bloqueio
+        session = PoliteSession(
+            min_delay=config.http.min_delay * 2,
+            max_delay=config.http.max_delay * 2,
+            max_retries=config.http.max_retries,
+            breaker_threshold=config.http.circuit_breaker_threshold,
+            block_status=EMPREGOS_BLOCK,
+        )
+        sources.append(EmpregosSource(session, skip_detail=storage.exists))
     if config.sources.linkedin_posts.enabled and config.sources.posts.mode == "browser":
         from .sources.linkedin_posts import LinkedInPostsSource
         sources.append(LinkedInPostsSource(config.sources.posts))

@@ -37,7 +37,7 @@ max_requests_per_run = 8
 queries = ["(dev OR desenvolvedor AND Fullstack OR Frontend)"]
 
 [sources.linkedin_jobs]
-enabled = false
+enabled = true
 queries = []
 location = ""
 time_range = ""
@@ -45,7 +45,7 @@ remote = ""
 max_pages = 0
 
 [sources.linkedin_posts]
-enabled = false
+enabled = true
 queries = ["(dev OR desenvolvedor AND Fullstack OR Frontend)"]
 location = ""
 time_range = ""
@@ -53,7 +53,7 @@ remote = ""
 max_pages = 0
 
 [sources.infojobs]
-enabled = false
+enabled = true
 queries = ["desenvolvedor", "programador", "desenvolvedor web"]
 location = ""
 time_range = "r7d"
@@ -82,7 +82,7 @@ desktop = true
 db_path = "vaga_hunter.db"
 
 [sources.catho]
-enabled = false
+enabled = true
 queries = ["desenvolvedor", "programador", "desenvolvedor web"]
 location = ""
 time_range = "r3d"
@@ -91,7 +91,7 @@ max_pages = 3
 
 
 [sources.programathor]
-enabled = false
+enabled = true
 queries = ["desenvolvedor", "react", "node"]
 location = ""
 time_range = ""
@@ -106,3 +106,28 @@ location = ""
 time_range = "r1m"
 remote = ""
 max_pages = 5
+
+[sources.gupy]
+enabled = true
+queries = ["desenvolvedor", "desenvolvedor frontend", "desenvolvedor backend", "react"]
+location = ""
+time_range = "r24h"
+remote = ""
+max_pages = 3
+
+[sources.remotar]
+enabled = true
+queries = ["desenvolvedor", "frontend", "backend", "react", "node"]
+location = ""
+time_range = "r24h"
+remote = ""
+max_pages = 2
+
+[sources.empregos]
+# Só 1ª página por query (WAF bloqueia paginação); datas por dia
+enabled = true
+queries = ["desenvolvedor", "desenvolvedor web"]
+location = ""
+time_range = "r3d"
+remote = ""
+max_pages = 1
