@@ -44,14 +44,12 @@ _RELATIVE_RE = re.compile(
     r"(?:Publicada|Atualizada)\s+há\s+(?:(\d+)\s+)?(minuto|hora|dia|semana|m[eê]s)",
     re.I)
 
-_UNIT_DELTAS = {
-    "minuto": timedelta(minutes=1),
-    "hora": timedelta(hours=1),
-    "dia": timedelta(days=1),
-    "semana": timedelta(weeks=1),
-    "mes": timedelta(days=30),
-    "mês": timedelta(days=30),
-}
+_BRT = timezone(timedelta(hours=-3))
+
+# granularidade fina (relativa ao agora) vs grossa (dia: meio-dia BRT,
+# convenção do projeto para datas relativas — ver CLAUDE.md)
+_FINE_DELTAS = {"minuto": timedelta(minutes=1), "hora": timedelta(hours=1)}
+_DAY_DELTAS = {"dia": 1, "semana": 7, "mes": 30, "mês": 30}
 
 
 def build_params(filters: SearchFilters, page: int = 1) -> dict[str, str]:
@@ -69,11 +67,14 @@ def parse_relative_date(text: str, now: datetime | None = None) -> datetime | No
         return None
     count = int(match.group(1) or 1)
     unit = match.group(2).lower().replace("meses", "mês")
-    delta = _UNIT_DELTAS.get(unit)
-    if delta is None:
-        return None
     now = now or datetime.now(timezone.utc)
-    return now - count * delta
+    if unit in _FINE_DELTAS:
+        return now - count * _FINE_DELTAS[unit]
+    days = _DAY_DELTAS.get(unit)
+    if days is None:
+        return None
+    noon = now.astimezone(_BRT).replace(hour=12, minute=0, second=0, microsecond=0)
+    return noon - timedelta(days=count * days)
 
 
 def _card_of(link) -> object:
@@ -168,9 +169,11 @@ def parse_job_detail(html: str, job: Job) -> Job:
     if posted_at is None:
         date_posted = str(posting.get("datePosted") or "")
         try:
-            posted_at = datetime.fromisoformat(date_posted).replace(tzinfo=timezone.utc)
+            posted_at = datetime.fromisoformat(date_posted)
+            if posted_at.tzinfo is None:
+                posted_at = posted_at.replace(tzinfo=timezone.utc)
         except ValueError:
-            pass
+            posted_at = None
 
     return Job(
         source=job.source,
@@ -214,11 +217,15 @@ class GeekhunterSource(JobSource):
                     stale += 1
                     continue  # fora da janela: não marca, outra query com
                               # janela maior ainda pode entregá-la
-                self._yielded.add(job.uid)
                 if self.skip_detail(job.uid):
+                    self._yielded.add(job.uid)
                     yield job
                     continue
-                yield self._fetch_job(job)
+                # detalhe antes de marcar: SourceBlockedError no meio não
+                # queima a vaga para um run futuro dentro do mesmo processo
+                job = self._fetch_job(job)
+                self._yielded.add(job.uid)
+                yield job
             # listagem ordenada por data desc: página inteira fora da janela
             # (ou toda duplicada) encerra a query
             if unseen == 0 or stale == unseen:

@@ -38,19 +38,29 @@ class TestBuildParams:
 
 
 class TestParseRelativeDate:
-    NOW = datetime(2026, 10, 22, 18, 0, tzinfo=timezone.utc)
+    NOW = datetime(2026, 10, 22, 18, 0, tzinfo=timezone.utc)   # 15h BRT
+    NOON = datetime(2026, 10, 22, 12 + 3, 0, tzinfo=timezone.utc)  # 12h BRT
 
-    def test_horas(self):
-        parsed = parse_relative_date("Publicada há 3 horas", self.NOW)
-        assert parsed == self.NOW - timedelta(hours=3)
+    def test_minutos_e_horas_sao_exatos(self):
+        assert parse_relative_date("Publicada há 45 minutos", self.NOW) == \
+            self.NOW - timedelta(minutes=45)
+        assert parse_relative_date("Publicada há 3 horas", self.NOW) == \
+            self.NOW - timedelta(hours=3)
 
-    def test_singular(self):
+    def test_dias_viram_meio_dia_brt(self):
+        # convenção do projeto para data relativa com granularidade de dia
         assert parse_relative_date("Publicada há 1 dia", self.NOW) == \
-            self.NOW - timedelta(days=1)
+            self.NOON - timedelta(days=1)
 
-    def test_meses(self):
+    def test_semanas_e_meses(self):
+        assert parse_relative_date("Publicada há 2 semanas", self.NOW) == \
+            self.NOON - timedelta(days=14)
         assert parse_relative_date("Publicada há 2 meses", self.NOW) == \
-            self.NOW - timedelta(days=60)
+            self.NOON - timedelta(days=60)
+
+    def test_atualizada_tambem_conta(self):
+        assert parse_relative_date("Atualizada há 5 horas", self.NOW) == \
+            self.NOW - timedelta(hours=5)
 
     def test_invalido(self):
         assert parse_relative_date("sem data nenhuma") is None
@@ -74,6 +84,21 @@ class TestParseSearchPage:
 
     def test_html_vazio(self):
         assert parse_search_page("<html></html>") == []
+
+    def test_href_relativo(self):
+        html = ('<div><p>Publicada há 2 horas</p>'
+                '<h3><a href="/pt/acme/jobs/dev-1">Dev</a></h3></div>')
+        (job,) = parse_search_page(html)
+        assert job.external_id == "acme/dev-1"
+        assert job.url == "https://www.geekhunter.com/pt/acme/jobs/dev-1"
+
+    def test_card_sem_data_nao_rouba_do_vizinho(self):
+        html = ('<ul><li><p>Publicada há 2 horas</p>'
+                '<a href="/pt/a/jobs/x-1">X</a></li>'
+                '<li><a href="/pt/b/jobs/y-1">Y</a></li></ul>')
+        jobs = {j.external_id: j for j in parse_search_page(html)}
+        assert jobs["a/x-1"].posted_at is not None
+        assert jobs["b/y-1"].posted_at is None
 
 
 class TestParseJobDetail:
