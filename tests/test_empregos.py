@@ -120,3 +120,29 @@ class TestEmpregosSource:
         first = list(source.search(SearchFilters(keywords="a", time_range="r1m")))
         second = list(source.search(SearchFilters(keywords="b", time_range="r1m")))
         assert first and not second
+
+
+class TestSessaoAntiWaf:
+    def test_breaker_dispara_no_primeiro_403(self, tmp_path):
+        """WAF do Empregos responde 403 por reputação de IP: repetir só piora.
+
+        A sessão montada pelo pipeline deve derrubar o breaker na primeira
+        resposta 403, sem retries.
+        """
+        from vaga_hunter.config import Config
+        from vaga_hunter.pipeline import build_sources
+        from vaga_hunter.sources.empregos import BLOCK_STATUS
+        from vaga_hunter.storage import Storage
+
+        config = Config()
+        for name in ("linkedin_jobs", "infojobs", "catho", "programathor",
+                     "trampos", "gupy", "remotar"):
+            getattr(config.sources, name).enabled = False
+        config.sources.empregos.enabled = True
+        storage = Storage(tmp_path / "t.db")
+
+        (source,) = build_sources(config, storage)
+        session = source.session
+        assert session.breaker_threshold == 1
+        assert session.block_status == BLOCK_STATUS
+        assert session.min_delay == config.http.min_delay * 2

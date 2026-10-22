@@ -11,8 +11,9 @@ Limitações conhecidas:
 - A listagem NÃO é ordenada por data: o corte por período filtra item a
   item, sem encerrar cedo.
 - Data relativa ("há N dias") — granularidade de dia.
-O WAF também pune bursts; a sessão desta fonte trata 403 como bloqueio
-(circuit breaker + cooldown).
+O WAF (GoCache) pune bursts e bloqueia por reputação de IP com desafio
+reCAPTCHA; a sessão desta fonte trata 403 como bloqueio imediato
+(breaker dispara no primeiro 403 + cooldown) — retry só piora o bloqueio.
 """
 from __future__ import annotations
 

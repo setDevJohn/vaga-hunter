@@ -64,12 +64,14 @@ def build_sources(config: Config, storage: Storage) -> list[JobSource]:
     if config.sources.empregos.enabled:
         from .sources.empregos import BLOCK_STATUS as EMPREGOS_BLOCK
         from .sources.empregos import EmpregosSource
-        # WAF sensível: delays dobrados e 403 conta como bloqueio
+        # WAF sensível (GoCache, desafio reCAPTCHA por reputação de IP):
+        # delays dobrados, 403 conta como bloqueio e o breaker dispara na
+        # PRIMEIRA resposta — repetir um 403 de WAF só piora a reputação
         session = PoliteSession(
             min_delay=config.http.min_delay * 2,
             max_delay=config.http.max_delay * 2,
             max_retries=config.http.max_retries,
-            breaker_threshold=config.http.circuit_breaker_threshold,
+            breaker_threshold=1,
             block_status=EMPREGOS_BLOCK,
         )
         sources.append(EmpregosSource(session, skip_detail=storage.exists))
