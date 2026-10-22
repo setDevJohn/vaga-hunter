@@ -81,7 +81,7 @@ desktop = true
 db_path = "vaga_hunter.db"
 
 [sources.catho]
-enabled = true
+enabled = false
 queries = ["desenvolvedor", "programador", "desenvolvedor web"]
 location = ""
 time_range = "r3d"

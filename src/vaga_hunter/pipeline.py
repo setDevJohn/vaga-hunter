@@ -47,8 +47,14 @@ def build_sources(config: Config, storage: Storage) -> list[JobSource]:
                                    skip_detail=storage.exists))
     if config.sources.vagas_com_br.enabled:
         from .sources.vagas_com_br import VagasComBrSource
-        sources.append(VagasComBrSource(_polite_session(config),
-                                        skip_detail=storage.exists))
+        # Vagas.com.br rate-limita mais cedo (429): ritmo 2x mais lento
+        slow = PoliteSession(
+            min_delay=config.http.min_delay * 2,
+            max_delay=config.http.max_delay * 2,
+            max_retries=config.http.max_retries,
+            breaker_threshold=config.http.circuit_breaker_threshold,
+        )
+        sources.append(VagasComBrSource(slow, skip_detail=storage.exists))
     if config.sources.programathor.enabled:
         from .sources.programathor import ProgramathorSource
         sources.append(ProgramathorSource(_polite_session(config),

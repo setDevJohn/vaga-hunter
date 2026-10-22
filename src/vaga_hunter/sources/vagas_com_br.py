@@ -65,6 +65,17 @@ def parse_posted_text(text: str, now: datetime | None = None) -> datetime | None
     return None
 
 
+def matches_query(job: Job, keywords: str) -> bool:
+    """Filtro de relevância: a busca do site é quebrada para termos amplos
+    (com ordenar_por=mais_recentes devolve vagas de qualquer área — motorista,
+    cozinheiro...). Exige toda palavra da query no título+descrição do card."""
+    haystack = _fold(f"{job.title} {job.description}")
+    return all(
+        re.search(rf"(?<![a-z0-9]){re.escape(word)}(?![a-z0-9])", haystack)
+        for word in _fold(keywords).split()
+    )
+
+
 def parse_search_page(html: str, now: datetime | None = None) -> list[Job]:
     soup = BeautifulSoup(html, "lxml")
     jobs: list[Job] = []
@@ -148,11 +159,15 @@ class VagasComBrSource(JobSource):
                 break
             stale = 0
             unseen = 0
+            dropped = 0
             for job in jobs:
                 if job.uid in self._yielded:
                     continue  # páginas vizinhas se sobrepõem um pouco
                 self._yielded.add(job.uid)
                 unseen += 1
+                if not matches_query(job, filters.keywords):
+                    dropped += 1  # busca quebrada do site: vaga de outra área
+                    continue
                 if job.posted_at is not None and job.posted_at < cutoff:
                     stale += 1
                     continue
@@ -163,7 +178,10 @@ class VagasComBrSource(JobSource):
                     if posted_at is not None:
                         job.posted_at = posted_at
                 yield job
-            if unseen == 0 or stale == unseen:
+            if dropped:
+                log.info("Vagas.com.br: %d vagas fora do termo descartadas "
+                         "(busca do site é imprecisa)", dropped)
+            if unseen == 0 or stale + dropped == unseen:
                 break
 
     def _fetch_detail(self, url: str) -> tuple[str, datetime | None]:

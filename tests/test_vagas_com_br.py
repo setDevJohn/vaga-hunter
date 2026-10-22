@@ -81,7 +81,7 @@ def test_search_dedups_page_overlap_and_stops_on_stale():
             return FakeResp(pages[len(calls) - 1])
 
     source = VagasComBrSource(FakeSession(), skip_detail=lambda uid: True)
-    jobs = list(source.search(SearchFilters(keywords="x", time_range="r3d", max_pages=3)))
+    jobs = list(source.search(SearchFilters(keywords="dev", time_range="r3d", max_pages=3)))
     # job 2 repetido na p2 não duplica; job 3 (30 dias) filtrado pela janela
     assert [j.external_id for j in jobs] == ["1", "2"]
     # p2 só tinha 1 não-visto e ele era velho -> stale == unseen -> para
@@ -95,3 +95,42 @@ def test_level_injection_accent_insensitive():
     </li></html>'''
     jobs = parse_search_page(html)
     assert jobs[0].title == "Dev SENIOR"  # não duplica "(Sênior)"
+
+
+def test_matches_query_filters_site_garbage():
+    from vaga_hunter.models import Job
+    from vaga_hunter.sources.vagas_com_br import matches_query
+    dev = Job(source="vagas_com_br", external_id="1",
+              title="Programador Júnior", description="PHP e SQL")
+    cook = Job(source="vagas_com_br", external_id="2",
+               title="Cozinheiro(a)", description="Restaurante industrial")
+    assert matches_query(dev, "programador")
+    assert not matches_query(cook, "programador")
+    # multi-palavra exige todas; acentos ignorados
+    assert matches_query(dev, "programador junior")
+    assert not matches_query(dev, "programador senior")
+    # palavra inteira, não substring: "ti" não casa com "objetivo"
+    from vaga_hunter.models import Job as J
+    adm = J(source="x", external_id="3", title="Aprendiz Administrativo",
+            description="Seu objetivo será apoiar a gestão")
+    assert not matches_query(adm, "ti")
+    ti = J(source="x", external_id="4", title="Analista de TI",
+           description="Suporte e infraestrutura")
+    assert matches_query(ti, "ti")
+
+
+def test_search_drops_offtopic_and_stops():
+    """Página cheia de vagas fora do termo (busca quebrada do site) encerra."""
+    page = "<html>" + _card("1", "Hoje").replace("Dev 1", "Cozinheiro") + "</html>"
+    calls = []
+
+    class FakeSession:
+        def get(self, url, params=None):
+            calls.append(url)
+            return FakeResp(page)
+
+    source = VagasComBrSource(FakeSession(), skip_detail=lambda uid: True)
+    jobs = list(source.search(SearchFilters(keywords="programador", time_range="r3d",
+                                            max_pages=5)))
+    assert jobs == []
+    assert len(calls) == 1  # página toda fora do termo: para na primeira
