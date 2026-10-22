@@ -89,7 +89,7 @@ remote = ""
 max_pages = 3
 
 [sources.vagas_com_br]
-enabled = true
+enabled = false
 queries = ["programador", "ti"]
 location = ""
 time_range = "r3d"
