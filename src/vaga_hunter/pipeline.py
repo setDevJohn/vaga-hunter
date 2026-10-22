@@ -61,20 +61,6 @@ def build_sources(config: Config, storage: Storage) -> list[JobSource]:
         from .sources.remotar import RemotarSource
         sources.append(RemotarSource(_polite_session(config),
                                      skip_detail=storage.exists))
-    if config.sources.empregos.enabled:
-        from .sources.empregos import BLOCK_STATUS as EMPREGOS_BLOCK
-        from .sources.empregos import EmpregosSource
-        # WAF sensível (GoCache, desafio reCAPTCHA por reputação de IP):
-        # delays dobrados, 403 conta como bloqueio e o breaker dispara na
-        # PRIMEIRA resposta — repetir um 403 de WAF só piora a reputação
-        session = PoliteSession(
-            min_delay=config.http.min_delay * 2,
-            max_delay=config.http.max_delay * 2,
-            max_retries=config.http.max_retries,
-            breaker_threshold=1,
-            block_status=EMPREGOS_BLOCK,
-        )
-        sources.append(EmpregosSource(session, skip_detail=storage.exists))
     if config.sources.linkedin_posts.enabled and config.sources.posts.mode == "browser":
         from .sources.linkedin_posts import LinkedInPostsSource
         sources.append(LinkedInPostsSource(config.sources.posts))

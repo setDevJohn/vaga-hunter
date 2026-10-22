@@ -134,8 +134,7 @@ function jobCard(job) {
   const SOURCE_PT = { linkedin_jobs: "LinkedIn", linkedin_posts: "LinkedIn · post",
                       infojobs: "InfoJobs", catho: "Catho",
                       programathor: "Programathor", trampos: "Trampos.co",
-                      gupy: "Gupy", remotar: "Remotar",
-                      empregos: "Empregos.com.br" };
+                      gupy: "Gupy", remotar: "Remotar" };
   badges.push(`<span class="badge outline source">${esc(SOURCE_PT[job.source] || job.source)}</span>`);
   const MODALITY_PT = { remote: "🏠 remoto", hybrid: "🔄 híbrido", onsite: "🏢 presencial" };
   if (job.modality) badges.push(`<span class="badge outline modality-${esc(job.modality)}">${MODALITY_PT[job.modality]}</span>`);
@@ -371,7 +370,6 @@ const SOURCE_PAGES = {
   trampos: "Trampos.co",
   gupy: "Gupy",
   remotar: "Remotar",
-  empregos: "Empregos.com.br",
 };
 
 function fillTimeSelect(select, value, inheritLabel = null) {
@@ -438,7 +436,7 @@ function readSourcePage(name) {
 function updateNavBadges() {
   for (const item of $$(".nav-item")) {
     const name = item.dataset.page;
-    if (name === "geral") continue;
+    if (name === "geral" || name === "descartadas") continue;
     const src = readSourcePage(name);
     item.innerHTML = `${SOURCE_PAGES[name]}${src && src.enabled ? "" : ' <span class="off">off</span>'}`;
   }
@@ -454,7 +452,8 @@ async function loadConfig() {
   $("#cfg-threshold").value = cfg.threshold;
 
   const body = $(".settings-body");
-  for (const old of body.querySelectorAll('.settings-page:not([data-page="geral"])')) old.remove();
+  for (const old of body.querySelectorAll(
+      '.settings-page:not([data-page="geral"]):not([data-page="descartadas"])')) old.remove();
   for (const name of Object.keys(SOURCE_PAGES)) {
     body.appendChild(buildSourcePage(name, cfg.sources[name] || {}));
   }

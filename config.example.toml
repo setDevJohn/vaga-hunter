@@ -54,12 +54,6 @@ queries = ["desenvolvedor", "desenvolvedor frontend", "desenvolvedor backend"]
 enabled = false
 queries = ["desenvolvedor", "frontend", "backend", "react"]
 
-[sources.empregos]
-# Empregos.com.br (Solides): só a 1ª página por query (~20 vagas) — o WAF do
-# site bloqueia parâmetros de paginação/ordenação. Datas com granularidade de dia.
-enabled = false
-queries = ["desenvolvedor", "desenvolvedor-web"]
-
 [sources.posts]
 mode = "disabled"          # disabled | browser (Chrome real via CDP)
 cdp_url = "http://127.0.0.1:9222"
