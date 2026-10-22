@@ -168,3 +168,12 @@ class TestTramposSource:
         detail_calls = [u for u in session.calls if "oportunidade/" in u]
         assert detail_calls == []
         assert all(j.title for j in jobs)
+
+
+class TestSlugMatchesBordas:
+    def test_nao_casa_substring_de_token(self):
+        assert not slug_matches("react", "preact-developer-jr")
+
+    def test_query_separada_casa_slug_compacto(self):
+        assert slug_matches("full stack", "fullstack-developer")
+        assert slug_matches("front end", "frontend-pleno")

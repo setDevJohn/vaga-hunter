@@ -77,12 +77,24 @@ def slug_matches(keywords: str, slug: str) -> bool:
     "full-stack" (e vice-versa).
     """
     tokens = [t for t in _fold(slug).split("-") if t]
-    compact = "".join(tokens)
+    token_set = set(tokens)
+    # pares adjacentes concatenados: slug "full-stack" atende query "fullstack"
+    joined = {a + b for a, b in zip(tokens, tokens[1:])}
     words = [w for w in re.split(r"[^a-z0-9]+", _fold(keywords))
              if w and w not in _STOPWORDS]
     if not words:
         return False
-    return all(w in tokens or w.replace("-", "") in compact for w in words)
+    i = 0
+    while i < len(words):
+        if words[i] in token_set or words[i] in joined:
+            i += 1
+            continue
+        # query "full stack" atende slug "fullstack"
+        if i + 1 < len(words) and words[i] + words[i + 1] in token_set:
+            i += 2
+            continue
+        return False
+    return True
 
 
 def _title_from_slug(slug: str) -> str:
