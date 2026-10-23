@@ -453,9 +453,16 @@ async function loadConfig() {
   $("#cfg-max-pages").value = cfg.max_pages_per_query;
   $("#cfg-threshold").value = cfg.threshold;
 
+  const profile = cfg.profile || {};
+  $("#cfg-roles").value = (profile.roles || []).join("\n");
+  $("#cfg-seniority").value = (profile.seniority || []).join("\n");
+  $("#cfg-include").value = (profile.include_keywords || []).join("\n");
+  $("#cfg-exclude-soft").value = (profile.exclude_keywords_soft || []).join("\n");
+  $("#cfg-exclude-hard").value = (profile.exclude_keywords_hard || []).join("\n");
+
   const body = $(".settings-body");
   for (const old of body.querySelectorAll(
-      '.settings-page:not([data-page="geral"]):not([data-page="descartadas"])')) old.remove();
+      '.settings-page:not([data-page="geral"]):not([data-page="perfil"]):not([data-page="descartadas"])')) old.remove();
   for (const name of Object.keys(SOURCE_PAGES)) {
     body.appendChild(buildSourcePage(name, cfg.sources[name] || {}));
   }
@@ -617,6 +624,13 @@ $("#btn-save-config").addEventListener("click", async () => {
       remote: $("#cfg-remote").value,
       max_pages_per_query: $("#cfg-max-pages").value,
       threshold: $("#cfg-threshold").value,
+      profile: {
+        roles: $("#cfg-roles").value.split("\n"),
+        seniority: $("#cfg-seniority").value.split("\n"),
+        include_keywords: $("#cfg-include").value.split("\n"),
+        exclude_keywords_soft: $("#cfg-exclude-soft").value.split("\n"),
+        exclude_keywords_hard: $("#cfg-exclude-hard").value.split("\n"),
+      },
       sources,
     }),
   });
@@ -624,6 +638,21 @@ $("#btn-save-config").addEventListener("click", async () => {
     $("#params-dialog").close();
     toast(result.saved_to_file ? "Configurações salvas no config.toml" : "Configurações aplicadas", "ok");
     refreshStatus(true);  // botão de posts pode ter mudado de visibilidade
+  }
+});
+
+$("#btn-rescore").addEventListener("click", async () => {
+  const btn = $("#btn-rescore");
+  btn.disabled = true;
+  try {
+    const result = await api("/api/rescore", { method: "POST" });
+    if (result.ok) {
+      $("#rescore-result").textContent =
+        `${result.total} reavaliadas, ${result.changed} alteradas, ${result.above} acima do threshold`;
+      loadJobs();
+    }
+  } finally {
+    btn.disabled = false;
   }
 });
 

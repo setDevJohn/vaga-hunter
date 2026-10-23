@@ -44,3 +44,15 @@ def test_time_ranges_roundtrip(tmp_path):
     cfg2.sources.infojobs.time_range = ""
     save_search_params(cfg2)
     assert load_config(toml).sources.infojobs.time_range == ""
+
+
+def test_save_profile_roundtrip(tmp_path: Path):
+    path = tmp_path / "config.toml"
+    path.write_text('[search]\nqueries = ["dev"]\n')
+    cfg = load_config(path)
+    cfg.profile.roles = ["fullstack", "react native"]
+    cfg.profile.exclude_keywords_hard = ["estágio"]
+    assert save_search_params(cfg) is True
+    reloaded = load_config(path)
+    assert reloaded.profile.roles == ["fullstack", "react native"]
+    assert reloaded.profile.exclude_keywords_hard == ["estágio"]

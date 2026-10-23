@@ -15,7 +15,7 @@ seniority = ["junior", "pleno"]
 exclude_keywords_hard = ["estágio", "estagiário", "trainee", "intern", "internship"]
 # Penalizam (soft):
 exclude_keywords_soft = ["senior", "sênior", "sr.", "especialista", "lead", "principal"]
-include_keywords = ["react", "typescript", "node", "python", "javascript", "aws", "docker"]
+include_keywords = ["react", "typescript", "node", "javascript", "aws", "docker"]
 
 [scoring]
 threshold = 70.0             # só notifica vagas com score >= threshold

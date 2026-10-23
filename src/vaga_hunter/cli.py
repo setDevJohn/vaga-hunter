@@ -61,28 +61,11 @@ def cmd_run(config: Config, args: argparse.Namespace) -> int:
 
 def cmd_rescore(config: Config, args: argparse.Namespace) -> int:
     """Reaplica o scoring atual sobre as vagas já salvas (sem rede)."""
-    from datetime import datetime
-
-    from .models import Job
-    from .scoring import Scorer
+    from .pipeline import rescore_all
 
     storage = _storage(config)
-    scorer = Scorer(config.profile, config.scoring)
-    rows = storage.list_jobs(limit=100000)
-    changed = above = 0
-    for row in rows:
-        posted = datetime.fromisoformat(row["posted_at"]) if row["posted_at"] else None
-        job = Job(source=row["source"], external_id=row["external_id"],
-                  title=row["title"], company=row["company"],
-                  location=row["location"], url=row["url"],
-                  description=row["description"] or "", posted_at=posted)
-        score, details = scorer.score(job)
-        if abs(score - row["score"]) >= 0.05:
-            storage.update_score(row["uid"], score, details)
-            changed += 1
-        if score >= config.scoring.threshold:
-            above += 1
-    print(f"{len(rows)} vagas reavaliadas, {changed} scores alterados, "
+    total, changed, above = rescore_all(config, storage)
+    print(f"{total} vagas reavaliadas, {changed} scores alterados, "
           f"{above} acima do threshold ({config.scoring.threshold:.0f}).")
     storage.close()
     return 0
