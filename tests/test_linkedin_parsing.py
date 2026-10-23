@@ -57,3 +57,14 @@ def test_search_paginates_by_actual_page_size(monkeypatch):
     per_page = len(jobs) // 2
     assert per_page > 0
     assert starts == ["0", str(per_page), str(per_page * 2)]
+
+
+def test_posted_at_timezone_aware_meio_dia_brt():
+    html = (FIXTURES / "search_page.html").read_text()
+    jobs = parse_search_page(html)
+    dated = [j for j in jobs if j.posted_at]
+    assert dated
+    for job in dated:
+        # card guest traz só a data: convenção do projeto = meio-dia BRT
+        assert job.posted_at.tzinfo is not None
+        assert job.posted_at.hour == 12
