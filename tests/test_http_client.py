@@ -15,7 +15,7 @@ def make_session(responses, monkeypatch):
     session = PoliteSession(min_delay=0, max_delay=0, max_retries=2,
                             breaker_threshold=3)
     it = iter(responses)
-    monkeypatch.setattr(session._session, "get",
+    monkeypatch.setattr(session._session, "request",
                         lambda *a, **k: next(it))
     monkeypatch.setattr("time.sleep", lambda s: None)
     return session

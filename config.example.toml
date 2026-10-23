@@ -54,6 +54,12 @@ queries = ["desenvolvedor", "desenvolvedor frontend", "desenvolvedor backend"]
 enabled = false
 queries = ["desenvolvedor", "frontend", "backend", "react"]
 
+[sources.apinfo]
+# APinfo: board de TI veterano; busca no título, período server-side, descrição
+# completa no card. Sem página pública por vaga: candidate-se buscando o código.
+enabled = false
+queries = ["desenvolvedor", "react", "node"]
+
 [sources.geekhunter]
 # GeekHunter: board 100% tech, listagem ordenada por data; descrição vem do
 # detalhe (1 request por vaga nova). Cloudflare na frente (hoje sem desafio).

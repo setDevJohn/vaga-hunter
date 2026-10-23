@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Callable, Iterator
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from bs4 import BeautifulSoup
 
@@ -103,6 +103,12 @@ def parse_search_page(html: str) -> list[Job]:
                 posted_at = datetime.fromisoformat(time_el["datetime"])
             except (ValueError, KeyError):
                 pass
+            else:
+                if posted_at.tzinfo is None:
+                    # o card guest traz só a data: meio-dia BRT (convenção
+                    # do projeto para data sem hora)
+                    posted_at = posted_at.replace(
+                        hour=12, tzinfo=timezone(timedelta(hours=-3)))
 
         url = ""
         if link_el and link_el.get("href"):

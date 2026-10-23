@@ -173,5 +173,5 @@ class InfoJobsSource(JobSource):
         except SourceBlockedError:
             raise
         except Exception as exc:
-            log.debug("InfoJobs: falha no detalhe %s: %s", url, exc)
+            log.debug("InfoJobs: falha no detalhe %s: %s", job_id, exc)
             return ""

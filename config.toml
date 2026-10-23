@@ -107,6 +107,16 @@ time_range = "r1m"
 remote = ""
 max_pages = 5
 
+[sources.apinfo]
+# APinfo: busca só no título; filtro de período server-side; sem página
+# pública por vaga (candidatura: buscar o código no site)
+enabled = true
+queries = ["desenvolvedor", "react", "node"]
+location = ""
+time_range = "r24h"
+remote = ""
+max_pages = 3
+
 [sources.geekhunter]
 # Board 100% tech; descrição vem do detalhe (1 request por vaga nova)
 enabled = true

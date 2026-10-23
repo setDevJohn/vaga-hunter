@@ -66,6 +66,7 @@ login (exceto LinkedIn posts via CDP, opcional e desligado por padrão).
 | Gupy | CloudFront | sem desafio; buildId renovado em 404 de deploy |
 | Remotar | — | API aberta; param é `search` ("q" é ignorado) |
 | GeekHunter | Cloudflare | sem desafio (tolerou burst no recon); 403 = breaker imediato |
+| APinfo | — (Apache) | busca POST iso-8859-1; período server-side (ddmmaa1); paginação exige pkey da resposta |
 
 ## Fontes analisadas e DESCARTADAS (não reimplementar sem o usuário pedir)
 
