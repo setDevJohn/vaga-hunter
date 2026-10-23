@@ -205,3 +205,28 @@ def _run_search(config: Config, storage: Storage, sources: list[JobSource],
             report.notified = len(jobs)
 
     return report
+
+
+def rescore_all(config: Config, storage: Storage) -> tuple[int, int, int]:
+    """Reaplica o scoring atual nas vagas salvas (sem rede).
+
+    Retorna (total, alteradas, acima do threshold).
+    """
+    from datetime import datetime
+
+    scorer = Scorer(config.profile, config.scoring)
+    rows = storage.list_jobs(limit=100000)
+    changed = above = 0
+    for row in rows:
+        posted = datetime.fromisoformat(row["posted_at"]) if row["posted_at"] else None
+        job = Job(source=row["source"], external_id=row["external_id"],
+                  title=row["title"], company=row["company"],
+                  location=row["location"], url=row["url"],
+                  description=row["description"] or "", posted_at=posted)
+        score, details = scorer.score(job)
+        if abs(score - row["score"]) >= 0.05:
+            storage.update_score(row["uid"], score, details)
+            changed += 1
+        if score >= config.scoring.threshold:
+            above += 1
+    return len(rows), changed, above

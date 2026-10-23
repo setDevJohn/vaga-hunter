@@ -237,6 +237,13 @@ def create_app(config: Config, storage: Storage | None = None,
             "remote": config.search.remote or "",
             "max_pages_per_query": config.search.max_pages_per_query,
             "threshold": config.scoring.threshold,
+            "profile": {
+                "roles": config.profile.roles,
+                "seniority": config.profile.seniority,
+                "include_keywords": config.profile.include_keywords,
+                "exclude_keywords_soft": config.profile.exclude_keywords_soft,
+                "exclude_keywords_hard": config.profile.exclude_keywords_hard,
+            },
             "sources": {
                 name: {
                     "enabled": config.sources.get(name).enabled,
@@ -305,9 +312,28 @@ def create_app(config: Config, storage: Storage | None = None,
                 "threshold", config.scoring.threshold))))
         except (TypeError, ValueError):
             errors.append("número inválido")
+        profile_in = data.get("profile")
+        parsed_profile = {}
+        if isinstance(profile_in, dict):
+            for key in ("roles", "seniority", "include_keywords",
+                        "exclude_keywords_soft", "exclude_keywords_hard"):
+                if key not in profile_in:
+                    continue  # update parcial: ausente mantém o atual
+                values = profile_in.get(key)
+                if not isinstance(values, list):
+                    errors.append(f"profile.{key} deve ser lista")
+                    continue
+                parsed_profile[key] = [str(v).strip().lower()
+                                       for v in values if str(v).strip()]
+            if not parsed_profile.get("seniority",
+                                      config.profile.seniority):
+                errors.append("informe pelo menos uma senioridade")
+
         if errors:
             return jsonify({"ok": False, "error": "; ".join(errors)}), 400
 
+        for key, values in parsed_profile.items():
+            setattr(config.profile, key, values)
         config.search.queries = queries
         config.search.location = str(data.get("location", config.search.location)).strip() or "Brasil"
         config.search.time_range = time_range
@@ -320,6 +346,13 @@ def create_app(config: Config, storage: Storage | None = None,
         config.scoring.threshold = threshold
         saved = save_search_params(config)  # vale na hora; persiste se há config.toml
         return jsonify({"ok": True, "saved_to_file": saved})
+
+    @app.post("/api/rescore")
+    def api_rescore():
+        from ..pipeline import rescore_all
+        total, changed, above = rescore_all(config, storage)
+        return jsonify({"ok": True, "total": total, "changed": changed,
+                        "above": above})
 
     @app.post("/api/daemon/start")
     def api_daemon_start():

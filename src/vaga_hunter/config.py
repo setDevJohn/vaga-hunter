@@ -177,6 +177,12 @@ def save_search_params(cfg: Config) -> bool:
     search["max_pages_per_query"] = cfg.search.max_pages_per_query
     scoring = doc.setdefault("scoring", tomlkit.table())
     scoring["threshold"] = cfg.scoring.threshold
+    profile = doc.setdefault("profile", tomlkit.table())
+    profile["roles"] = cfg.profile.roles
+    profile["seniority"] = cfg.profile.seniority
+    profile["include_keywords"] = cfg.profile.include_keywords
+    profile["exclude_keywords_soft"] = cfg.profile.exclude_keywords_soft
+    profile["exclude_keywords_hard"] = cfg.profile.exclude_keywords_hard
     sources = doc.setdefault("sources", tomlkit.table())
     for name in SOURCE_NAMES:
         settings = cfg.sources.get(name)

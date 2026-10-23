@@ -245,3 +245,46 @@ def test_config_rejects_zero_time_range(client):
     test_client, _ = client
     resp = test_client.post("/api/config", json={"queries": ["x"], "time_range": "r0h"})
     assert resp.status_code == 400
+
+
+def test_get_config_inclui_profile(client):
+    test_client, _ = client
+    cfg = test_client.get("/api/config").get_json()
+    profile = cfg["profile"]
+    assert set(profile) == {"roles", "seniority", "include_keywords",
+                            "exclude_keywords_soft", "exclude_keywords_hard"}
+    assert profile["seniority"] == ["junior", "pleno"]
+
+
+def test_update_profile_normaliza_e_persiste_em_memoria(client):
+    test_client, _ = client
+    resp = test_client.post("/api/config", json={
+        "queries": ["dev"],
+        "profile": {"roles": ["  Fullstack ", "", "React Native"],
+                    "include_keywords": ["TypeScript"]},
+    })
+    assert resp.status_code == 200
+    cfg = test_client.get("/api/config").get_json()["profile"]
+    assert cfg["roles"] == ["fullstack", "react native"]       # strip + lowercase
+    assert cfg["include_keywords"] == ["typescript"]
+    assert cfg["seniority"] == ["junior", "pleno"]             # parcial preserva
+
+
+def test_update_profile_rejeita_nao_lista_e_seniority_vazia(client):
+    test_client, _ = client
+    resp = test_client.post("/api/config", json={
+        "queries": ["dev"], "profile": {"roles": "fullstack"}})
+    assert resp.status_code == 400
+    resp = test_client.post("/api/config", json={
+        "queries": ["dev"], "profile": {"seniority": ["", "  "]}})
+    assert resp.status_code == 400
+
+
+def test_rescore_endpoint(client):
+    test_client, _ = client
+    resp = test_client.post("/api/rescore")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True and data["total"] == 2
+    # scoring real reavaliou: "Dev Senior" com score 20 artificial muda
+    assert data["changed"] >= 1

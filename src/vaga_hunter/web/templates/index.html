@@ -87,6 +87,7 @@
   <div class="settings">
     <nav class="settings-nav" role="tablist" aria-label="Páginas de configuração">
       <button class="nav-item active" data-page="geral" role="tab" aria-selected="true">Geral</button>
+      <button class="nav-item" data-page="perfil" role="tab" aria-selected="false">Perfil</button>
       <button class="nav-item" data-page="linkedin_jobs" role="tab" aria-selected="false">LinkedIn Jobs</button>
       <button class="nav-item" data-page="linkedin_posts" role="tab" aria-selected="false">LinkedIn Posts</button>
       <button class="nav-item" data-page="infojobs" role="tab" aria-selected="false">InfoJobs</button>
@@ -99,6 +100,32 @@
       <button class="nav-item" data-page="descartadas" role="tab" aria-selected="false">Descartadas</button>
     </nav>
     <div class="settings-body">
+      <section class="settings-page" data-page="perfil">
+        <p class="profile-hint">O perfil alimenta o scoring (0–100) de toda vaga encontrada.
+          Uma palavra por linha. Mudanças valem na próxima busca; use
+          "Reaplicar scoring" para reavaliar as vagas já salvas.</p>
+        <div class="params-grid">
+          <label>Roles (título da vaga; 30 pts)
+            <textarea id="cfg-roles" rows="5" spellcheck="false"></textarea>
+          </label>
+          <label>Senioridade desejada (20 pts)
+            <textarea id="cfg-seniority" rows="5" spellcheck="false"></textarea>
+          </label>
+          <label>Keywords desejadas (20 pts; título vale 2x)
+            <textarea id="cfg-include" rows="5" spellcheck="false"></textarea>
+          </label>
+          <label>Penalizam (-25 no score)
+            <textarea id="cfg-exclude-soft" rows="5" spellcheck="false"></textarea>
+          </label>
+          <label>Zeram o score (hard)
+            <textarea id="cfg-exclude-hard" rows="5" spellcheck="false"></textarea>
+          </label>
+        </div>
+        <div class="profile-actions">
+          <button id="btn-rescore" class="btn">Reaplicar scoring nas vagas salvas</button>
+          <span id="rescore-result" class="muted"></span>
+        </div>
+      </section>
       <section class="settings-page" data-page="descartadas">
         <p>Sites já analisados que <strong>não</strong> serão implementados (ou foram removidos):</p>
         <ul class="discarded-list">
