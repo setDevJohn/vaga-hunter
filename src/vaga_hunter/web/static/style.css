@@ -341,3 +341,10 @@ dialog h2 { margin: 0 0 var(--sp-4); font-size: var(--fs-lg); }
 .profile-hint { color: var(--muted, #888); font-size: .9em; margin-top: 0; }
 .profile-actions { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
 #rescore-result { font-size: .85em; }
+
+.sources-bulk { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.btn-sm { padding: 4px 10px; font-size: .85em; }
+.nav-item .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  margin-right: 6px; vertical-align: 1px; }
+.dot-on { background: #2ecc71; }
+.dot-off { background: #777; }

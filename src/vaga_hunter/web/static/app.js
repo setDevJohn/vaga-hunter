@@ -437,12 +437,24 @@ function readSourcePage(name) {
 }
 
 function updateNavBadges() {
-  for (const item of $$(".nav-item")) {
-    const name = item.dataset.page;
-    if (name === "geral" || name === "descartadas") continue;
+  // só as abas de fonte: as fixas (geral/perfil/descartadas) não têm "enabled"
+  for (const name of Object.keys(SOURCE_PAGES)) {
+    const item = document.querySelector(`.nav-item[data-page="${name}"]`);
+    if (!item) continue;
     const src = readSourcePage(name);
-    item.innerHTML = `${SOURCE_PAGES[name]}${src && src.enabled ? "" : ' <span class="off">off</span>'}`;
+    const on = src && src.enabled;
+    item.innerHTML = `<span class="dot ${on ? "dot-on" : "dot-off"}"></span>` +
+      `${SOURCE_PAGES[name]}${on ? "" : ' <span class="off">off</span>'}`;
   }
+}
+
+function setAllSources(enabled) {
+  for (const name of Object.keys(SOURCE_PAGES)) {
+    const page = document.querySelector(`.settings-page[data-page="${name}"]`);
+    const box = page && page.querySelector('[data-field="enabled"]');
+    if (box) box.checked = enabled;
+  }
+  updateNavBadges();
 }
 
 async function loadConfig() {
@@ -641,6 +653,9 @@ $("#btn-save-config").addEventListener("click", async () => {
     refreshStatus(true);  // botão de posts pode ter mudado de visibilidade
   }
 });
+
+$("#btn-enable-all").addEventListener("click", () => setAllSources(true));
+$("#btn-disable-all").addEventListener("click", () => setAllSources(false));
 
 $("#btn-rescore").addEventListener("click", async () => {
   const btn = $("#btn-rescore");
