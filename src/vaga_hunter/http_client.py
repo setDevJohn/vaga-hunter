@@ -55,6 +55,13 @@ class PoliteSession:
         time.sleep(base if base is not None else random.uniform(self.min_delay, self.max_delay))
 
     def get(self, url: str, params: dict | None = None) -> requests.Response:
+        return self._request("GET", url, params=params)
+
+    def post(self, url: str, data: dict | None = None) -> requests.Response:
+        return self._request("POST", url, data=data)
+
+    def _request(self, method: str, url: str, params: dict | None = None,
+                 data: dict | None = None) -> requests.Response:
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             if attempt == 0:
@@ -64,7 +71,8 @@ class PoliteSession:
                 log.debug("retry %d em %.1fs: %s", attempt, backoff, url)
                 self._sleep(backoff)
             try:
-                resp = self._session.get(url, params=params, timeout=self.timeout)
+                resp = self._session.request(method, url, params=params,
+                                             data=data, timeout=self.timeout)
             except requests.RequestException as exc:
                 last_error = exc
                 continue

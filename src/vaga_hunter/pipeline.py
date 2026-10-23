@@ -61,6 +61,10 @@ def build_sources(config: Config, storage: Storage) -> list[JobSource]:
         from .sources.remotar import RemotarSource
         sources.append(RemotarSource(_polite_session(config),
                                      skip_detail=storage.exists))
+    if config.sources.apinfo.enabled:
+        from .sources.apinfo import ApinfoSource
+        sources.append(ApinfoSource(_polite_session(config),
+                                    skip_detail=storage.exists))
     if config.sources.geekhunter.enabled:
         from .sources.geekhunter import BLOCK_STATUS as GEEKHUNTER_BLOCK
         from .sources.geekhunter import GeekhunterSource
