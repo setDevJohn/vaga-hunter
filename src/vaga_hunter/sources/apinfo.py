@@ -36,8 +36,8 @@ _BRT = timezone(timedelta(hours=-3))
 
 _INFO_RE = re.compile(r"^(.*?)\s*-\s*(\d{2}/\d{2}/\d{2})\s*$", re.S)
 _PAGES_RE = re.compile(r"Página\s+\d+\s+de\s+(\d+)")
-_PKEY_RE = re.compile(r'name="pkey"\s+value="([A-Za-z0-9]+)"')
-_TCV_RE = re.compile(r'name="tcv"\s+value="(\d+)"')
+_PKEY_RE = re.compile(r'<input[^>]*name="pkey"[^>]*value="([A-Za-z0-9]+)"')
+_TCV_RE = re.compile(r'<input[^>]*name="tcv"[^>]*value="(\d+)"')
 _CODE_RE = re.compile(r"Código\s*\.*\s*:?\s*(\d+)")
 _COMPANY_RE = re.compile(r"Empresa\s*\.*\s*:?\s*(.+)")
 
@@ -79,6 +79,10 @@ def parse_search_page(html: str) -> tuple[list[Job], int, str, str]:
         total_pages = int(match.group(1))
     pkey_match = _PKEY_RE.search(html)
     pkey = pkey_match.group(1) if pkey_match else ""
+    if not pkey and total_pages > 1:
+        log.warning("APinfo: pkey não encontrado com %d páginas — "
+                    "paginação indisponível (formato pode ter mudado)",
+                    total_pages)
     # a página tem dois forms com tcv (busca=1, paginação=real): usar o último
     tcv_values = _TCV_RE.findall(html)
     tcv = tcv_values[-1] if tcv_values else "1"
