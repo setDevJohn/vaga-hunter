@@ -54,6 +54,12 @@ queries = ["desenvolvedor", "desenvolvedor frontend", "desenvolvedor backend"]
 enabled = false
 queries = ["desenvolvedor", "frontend", "backend", "react"]
 
+[sources.geekhunter]
+# GeekHunter: board 100% tech, listagem ordenada por data; descrição vem do
+# detalhe (1 request por vaga nova). Cloudflare na frente (hoje sem desafio).
+enabled = false
+queries = ["desenvolvedor", "react", "node"]
+
 [sources.posts]
 mode = "disabled"          # disabled | browser (Chrome real via CDP)
 cdp_url = "http://127.0.0.1:9222"

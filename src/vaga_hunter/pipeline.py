@@ -61,6 +61,18 @@ def build_sources(config: Config, storage: Storage) -> list[JobSource]:
         from .sources.remotar import RemotarSource
         sources.append(RemotarSource(_polite_session(config),
                                      skip_detail=storage.exists))
+    if config.sources.geekhunter.enabled:
+        from .sources.geekhunter import BLOCK_STATUS as GEEKHUNTER_BLOCK
+        from .sources.geekhunter import GeekhunterSource
+        # Cloudflare: eventual desafio (403) é bloqueio imediato, sem retry
+        session = PoliteSession(
+            min_delay=config.http.min_delay,
+            max_delay=config.http.max_delay,
+            max_retries=config.http.max_retries,
+            breaker_threshold=1,
+            block_status=GEEKHUNTER_BLOCK,
+        )
+        sources.append(GeekhunterSource(session, skip_detail=storage.exists))
     if config.sources.linkedin_posts.enabled and config.sources.posts.mode == "browser":
         from .sources.linkedin_posts import LinkedInPostsSource
         sources.append(LinkedInPostsSource(config.sources.posts))

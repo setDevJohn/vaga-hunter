@@ -107,8 +107,17 @@ time_range = "r1m"
 remote = ""
 max_pages = 5
 
-[sources.gupy]
+[sources.geekhunter]
+# Board 100% tech; descrição vem do detalhe (1 request por vaga nova)
 enabled = true
+queries = ["desenvolvedor", "react", "node"]
+location = ""
+time_range = "r24h"
+remote = ""
+max_pages = 2
+
+[sources.gupy]
+enabled = false
 queries = ["desenvolvedor", "desenvolvedor frontend", "desenvolvedor backend", "react"]
 location = ""
 time_range = "r24h"
@@ -116,7 +125,7 @@ remote = ""
 max_pages = 3
 
 [sources.remotar]
-enabled = true
+enabled = false
 queries = ["desenvolvedor", "frontend", "backend", "react", "node"]
 location = ""
 time_range = "r24h"
