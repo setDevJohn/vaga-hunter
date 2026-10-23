@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 import subprocess
 import threading
@@ -346,6 +347,27 @@ def create_app(config: Config, storage: Storage | None = None,
         config.scoring.threshold = threshold
         saved = save_search_params(config)  # vale na hora; persiste se há config.toml
         return jsonify({"ok": True, "saved_to_file": saved})
+
+    @app.get("/go/apinfo/<code>")
+    def go_apinfo(code: str):
+        # O APinfo não tem página pública por vaga: a vaga específica só sai
+        # da busca via POST (sessão própria). Esta página faz o navegador do
+        # usuário postar a busca pelo código — cai direto na vaga, na sessão
+        # dele. Nenhum request é feito pelo bot.
+        if not re.fullmatch(r"\d{1,10}", code):
+            return jsonify({"ok": False, "error": "código inválido"}), 400
+        fields = {"tcv": "1", "pag": "1", "ddmmaa1": "", "ddmmaa2": "",
+                  "keyw": code, "onde": "1", "andor": "1"}
+        inputs = "".join(
+            f'<input type="hidden" name="{name}" value="{value}">'
+            for name, value in fields.items())
+        return (
+            "<!doctype html><html lang='pt-br'><head><meta charset='utf-8'>"
+            "<title>Abrindo vaga no APinfo…</title></head><body>"
+            f"<p>Abrindo a vaga {code} no APinfo…</p>"
+            "<form method='post' action='https://www.apinfo.com/apinfo/inc/list4.cfm'>"
+            f"{inputs}<noscript><button>Continuar</button></noscript></form>"
+            "<script>document.forms[0].submit()</script></body></html>")
 
     @app.post("/api/rescore")
     def api_rescore():

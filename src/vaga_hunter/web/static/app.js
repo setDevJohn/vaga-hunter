@@ -61,6 +61,16 @@ function safeUrl(url) {
   return "#";
 }
 
+function jobUrl(job) {
+  // APinfo não tem página pública por vaga: rota local faz o navegador
+  // postar a busca pelo código e cair direto na vaga
+  if (job.source === "apinfo") {
+    const code = String(job.uid || "").split(":")[1] || "";
+    if (/^\d+$/.test(code)) return `/go/apinfo/${code}`;
+  }
+  return safeUrl(job.url);
+}
+
 function toast(message, kind = "", actionLabel = "", onAction = null) {
   const el = document.createElement("div");
   el.className = `toast ${kind}`;
@@ -153,7 +163,7 @@ function jobCard(job) {
     <div class="job-row1">
       <span class="score-chip score-${scoreBand(job.score)}"
             aria-label="score ${Math.round(job.score)} de 100">${Math.round(job.score)}</span>
-      <a class="job-title" href="${esc(safeUrl(job.url))}" target="_blank"
+      <a class="job-title" href="${esc(jobUrl(job))}" target="_blank"
          rel="noopener noreferrer" referrerpolicy="no-referrer">${esc(job.title)}</a>
       <div class="job-actions">${actions}</div>
     </div>
@@ -179,7 +189,7 @@ function detailsPanel(job) {
   const desc = (job.description || "").trim();
   return `<div class="job-details">
     <div class="job-desc">${desc ? esc(desc.slice(0, 600)) + (desc.length >= 600 ? "…" : "") : '<span class="muted">sem descrição salva</span>'}
-      <p><a href="${esc(safeUrl(job.url))}" target="_blank" rel="noopener noreferrer"
+      <p><a href="${esc(jobUrl(job))}" target="_blank" rel="noopener noreferrer"
             referrerpolicy="no-referrer">abrir vaga ↗</a></p></div>
     <div class="breakdown"><h4>Score</h4>${rows}</div>
   </div>`;

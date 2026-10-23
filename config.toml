@@ -119,7 +119,7 @@ max_pages = 3
 
 [sources.geekhunter]
 # Board 100% tech; descrição vem do detalhe (1 request por vaga nova)
-enabled = true
+enabled = false
 queries = ["desenvolvedor", "react", "node"]
 location = ""
 time_range = "r24h"
