@@ -288,3 +288,19 @@ def test_rescore_endpoint(client):
     assert data["ok"] is True and data["total"] == 2
     # scoring real reavaliou: "Dev Senior" com score 20 artificial muda
     assert data["changed"] >= 1
+
+
+def test_go_apinfo_renderiza_form_autopost(client):
+    test_client, _ = client
+    resp = test_client.get("/go/apinfo/86575")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert 'action=\'https://www.apinfo.com/apinfo/inc/list4.cfm\'' in html
+    assert 'name="keyw" value="86575"' in html
+    assert "document.forms[0].submit()" in html
+
+
+def test_go_apinfo_rejeita_codigo_invalido(client):
+    test_client, _ = client
+    assert test_client.get("/go/apinfo/abc").status_code == 400
+    assert test_client.get("/go/apinfo/1%3Cscript%3E").status_code == 400
